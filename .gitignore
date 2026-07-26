@@ -1,0 +1,10 @@
+bin/
+obj/
+*.user
+*.db
+*.db-shm
+*.db-wal
+.idea/
+*.DotSettings.user
+appsettings.*.local.json
+.DS_Store

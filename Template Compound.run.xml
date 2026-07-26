@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="true" type="CompoundRunConfigurationType">
+    <toRun name="PersonalFinance.Api: https" type="LaunchSettings" />
+    <toRun name="PersonalFinance: https" type="LaunchSettings" />
+    <method v="2" />
+  </configuration>
+</component>
