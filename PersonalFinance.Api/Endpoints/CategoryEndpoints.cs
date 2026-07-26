@@ -1,39 +1,40 @@
 using PersonalFinance.Core.Entities;
+using PersonalFinance.Core.Enums;
 using PersonalFinance.Core.Interfaces;
 
 namespace PersonalFinance.Api.Endpoints;
 
-public static class AccountEndpoints
+public static class CategoryEndpoints
 {
-    public static IEndpointRouteBuilder MapAccountEndpoints(this IEndpointRouteBuilder app)
+    public static IEndpointRouteBuilder MapCategoryEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/accounts").WithTags("Accounts");
+        var group = app.MapGroup("/api/categories").WithTags("Categories");
 
-        group.MapGet("/", async (IAccountService service) =>
+        group.MapGet("/", async (ICategoryService service) =>
             Results.Ok(await service.GetAllAsync()));
 
-        group.MapGet("/{id:int}", async (int id, IAccountService service) =>
+        group.MapGet("/type/{type}", async (CategoryType type, ICategoryService service) =>
+            Results.Ok(await service.GetByTypeAsync(type)));
+
+        group.MapGet("/{id:int}", async (int id, ICategoryService service) =>
         {
-            var account = await service.GetByIdAsync(id);
-            return account is null ? Results.NotFound() : Results.Ok(account);
+            var cat = await service.GetByIdAsync(id);
+            return cat is null ? Results.NotFound() : Results.Ok(cat);
         });
 
-        group.MapGet("/total-balance", async (IAccountService service) =>
-            Results.Ok(new { TotalBalance = await service.GetTotalBalanceAsync() }));
-
-        group.MapPost("/", async (Account account, IAccountService service) =>
+        group.MapPost("/", async (Category category, ICategoryService service) =>
         {
-            var created = await service.CreateAsync(account);
-            return Results.Created($"/api/accounts/{created.Id}", created);
+            var created = await service.CreateAsync(category);
+            return Results.Created($"/api/categories/{created.Id}", created);
         });
 
-        group.MapPut("/{id:int}", async (int id, Account input, IAccountService service) =>
+        group.MapPut("/{id:int}", async (int id, Category input, ICategoryService service) =>
         {
             var updated = await service.UpdateAsync(id, input);
             return updated ? Results.NoContent() : Results.NotFound();
         });
 
-        group.MapDelete("/{id:int}", async (int id, IAccountService service) =>
+        group.MapDelete("/{id:int}", async (int id, ICategoryService service) =>
         {
             await service.DeleteAsync(id);
             return Results.NoContent();

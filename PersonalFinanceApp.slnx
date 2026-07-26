@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="PersonalFinance.Api/PersonalFinance.Api.csproj" />
   <Project Path="PersonalFinance.Core/PersonalFinance.Core.csproj" />
+  <Project Path="PersonalFinance.Tests/PersonalFinance.Tests.csproj" />
   <Project Path="PersonalFinance.Web/PersonalFinance.csproj" />
   <Project Path="PersonalFinance.Infrastructure/PersonalFinance.Infrastructure.csproj" />
 </Solution>

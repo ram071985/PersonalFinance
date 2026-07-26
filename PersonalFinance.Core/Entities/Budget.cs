@@ -1,0 +1,14 @@
+namespace PersonalFinance.Core.Entities;
+
+public class Budget
+{
+    public int Id { get; set; }
+    public int CategoryId { get; set; }
+    public decimal Amount { get; set; }
+    public int Year { get; set; }
+    public int Month { get; set; } // 1-12
+    public string? Notes { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public Category Category { get; set; } = null!;
+}
