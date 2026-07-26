@@ -1,0 +1,75 @@
+@using PersonalFinance.Models
+
+<div class="mb-6 rounded-xl border border-border bg-surface p-6">
+    <h2 class="mb-5 text-lg font-semibold text-text">
+        @(IsEdit ? "Edit Account" : "New Account")
+    </h2>
+
+    <EditForm Model="Model" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="mb-4 text-sm text-primary" />
+
+        <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+                <label class="mb-1.5 block text-sm font-medium text-text-muted">Name</label>
+                <InputText @bind-Value="Model.Name"
+                           class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+            </div>
+
+            <div>
+                <label class="mb-1.5 block text-sm font-medium text-text-muted">Type</label>
+                <InputSelect @bind-Value="Model.Type"
+                             class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
+                    <option value="Checking">Checking</option>
+                    <option value="Savings">Savings</option>
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="Investment">Investment</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Other">Other</option>
+                </InputSelect>
+            </div>
+
+            <div>
+                <label class="mb-1.5 block text-sm font-medium text-text-muted">Balance</label>
+                <InputNumber @bind-Value="Model.Balance" step="0.01"
+                             class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+            </div>
+
+            <div>
+                <label class="mb-1.5 block text-sm font-medium text-text-muted">Institution</label>
+                <InputText @bind-Value="Model.Institution"
+                           class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+            </div>
+
+            <div class="sm:col-span-2">
+                <label class="mb-1.5 block text-sm font-medium text-text-muted">Notes</label>
+                <InputTextArea @bind-Value="Model.Notes" rows="2"
+                               class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+            </div>
+        </div>
+
+        <div class="mt-6 flex gap-3">
+            <button type="submit"
+                    class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover">
+                @(IsEdit ? "Update" : "Create")
+            </button>
+            <button type="button"
+                    class="rounded-lg border border-border px-4 py-2 text-sm text-text-muted hover:bg-surface-2 hover:text-text"
+                    @onclick="OnCancel">
+                Cancel
+            </button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Account Model { get; set; } = new();
+    [Parameter] public bool IsEdit { get; set; }
+    [Parameter] public EventCallback<Account> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private async Task HandleValidSubmit()
+    {
+        await OnSave.InvokeAsync(Model);
+    }
+}

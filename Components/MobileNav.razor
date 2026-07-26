@@ -1,0 +1,18 @@
+@rendermode InteractiveServer
+
+<header class="mobile-header d-lg-none">
+    <button type="button" class="nav-toggle" @onclick="Toggle">
+        <span class="bi bi-list fs-4"></span>
+    </button>
+    <span class="mobile-title">Personal Finance</span>
+</header>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    private async Task Toggle()
+    {
+        await IsOpenChanged.InvokeAsync(!IsOpen);
+    }
+}

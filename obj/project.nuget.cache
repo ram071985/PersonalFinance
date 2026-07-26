@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "ExTYYuL7ep0=",
+  "success": true,
+  "projectFilePath": "/Users/reidmuchow/Documents/Software Development Projects/PersonalFinanceClean/PersonalFinance.csproj",
+  "expectedPackageFiles": [
+    "/Users/reidmuchow/.nuget/packages/microsoft.aspnetcore.app.internal.assets/10.0.2/microsoft.aspnetcore.app.internal.assets.10.0.2.nupkg.sha512",
+    "/Users/reidmuchow/.nuget/packages/microsoft.aspnetcore.components.webassembly/10.0.2/microsoft.aspnetcore.components.webassembly.10.0.2.nupkg.sha512",
+    "/Users/reidmuchow/.nuget/packages/microsoft.aspnetcore.components.webassembly.server/10.0.2/microsoft.aspnetcore.components.webassembly.server.10.0.2.nupkg.sha512",
+    "/Users/reidmuchow/.nuget/packages/microsoft.jsinterop.webassembly/10.0.2/microsoft.jsinterop.webassembly.10.0.2.nupkg.sha512"
+  ],
+  "logs": []
+}

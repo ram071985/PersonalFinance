@@ -1,0 +1,31 @@
+﻿<nav class="flex flex-col gap-1 px-2 py-3">
+    <NavLink href="" Match="NavLinkMatch.All" @onclick="OnNavigate"
+             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-text-muted no-underline hover:bg-surface-2 hover:text-text">
+        <span class="bi bi-speedometer2"></span> Dashboard
+    </NavLink>
+
+    <NavLink href="accounts" @onclick="OnNavigate"
+             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-text-muted no-underline hover:bg-surface-2 hover:text-text">
+        <span class="bi bi-wallet2"></span> Accounts
+    </NavLink>
+
+    <NavLink href="transactions" @onclick="OnNavigate"
+             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-text-muted no-underline hover:bg-surface-2 hover:text-text">
+        <span class="bi bi-arrow-left-right"></span> Transactions
+    </NavLink>
+
+    <NavLink href="categories" @onclick="OnNavigate"
+             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-text-muted no-underline hover:bg-surface-2 hover:text-text">
+        <span class="bi bi-tags"></span> Categories
+    </NavLink>
+
+    <NavLink href="budgets" @onclick="OnNavigate"
+             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-text-muted no-underline hover:bg-surface-2 hover:text-text">
+        <span class="bi bi-calendar-check"></span> Budgets
+    </NavLink>
+</nav>
+
+@code {
+    [Parameter] public EventCallback OnNavigate { get; set; }
+}
+
