@@ -1,5 +1,12 @@
+cat > .gitignore << 'EOF'
 bin/
 obj/
+**/bin/
+**/obj/
+lib/
+**/lib/
+node_modules/
+**/node_modules/
 *.user
 *.db
 *.db-shm
@@ -8,3 +15,13 @@ obj/
 *.DotSettings.user
 appsettings.*.local.json
 .DS_Store
+EOF# Build / deps
+bin/
+obj/
+**/bin/
+**/obj/
+lib/
+**/lib/
+node_modules/
+**/node_modules/
+**/wwwroot/lib/

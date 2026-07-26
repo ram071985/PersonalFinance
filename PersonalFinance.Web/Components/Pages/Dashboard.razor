@@ -1,0 +1,107 @@
+@page "/"
+@rendermode InteractiveServer
+@namespace PersonalFinance.Components.Pages
+
+<PageTitle>Dashboard</PageTitle>
+
+<h1 class="mb-6 text-2xl font-bold text-foreground">Dashboard</h1>
+<p class="text-brand text-2xl">This should be red</p>
+<p class="text-success text-2xl">This should be green</p>
+@if (_isLoading)
+{
+    <LoadingSpinner Message="Loading dashboard…" />
+}
+else
+{
+    <!-- Stats -->
+    <div class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="rounded-xl border border-border bg-surface p-5">
+            <p class="text-sm text-foreground-muted">Net Worth</p>
+            <p class="mt-1 text-2xl font-semibold text-foreground">@_netWorth.ToString("C")</p>
+        </div>
+
+        <div class="rounded-xl border border-border bg-surface p-5">
+            <p class="text-sm text-foreground-muted">Income (This Month)</p>
+            <p class="mt-1 text-2xl font-semibold text-success">@_monthlyIncome.ToString("C")</p>
+        </div>
+
+        <div class="rounded-xl border border-border bg-surface p-5">
+            <p class="text-sm text-foreground-muted">Expenses (This Month)</p>
+            <p class="mt-1 text-2xl font-semibold text-brand">@_monthlyExpenses.ToString("C")</p>
+        </div>
+    </div>
+
+    <!-- Recent transactions -->
+    <div>
+        <h2 class="mb-4 text-lg font-semibold text-foreground">Recent Transactions</h2>
+
+        @if (_recentTransactions.Count == 0)
+        {
+            <p class="text-foreground-muted">No transactions yet.</p>
+        }
+        else
+        {
+            <div class="overflow-hidden rounded-xl border border-border bg-surface">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-surface-2 text-xs uppercase tracking-wider text-foreground-muted">
+                            <tr>
+                                <th class="px-5 py-3">Date</th>
+                                <th class="px-5 py-3">Description</th>
+                                <th class="px-5 py-3">Category</th>
+                                <th class="px-5 py-3 text-right">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var tx in _recentTransactions)
+                            {
+                                <tr class="border-t border-border hover:bg-surface-2">
+                                    <td class="px-5 py-3.5">@tx.Date.ToString("MMM d")</td>
+                                    <td class="px-5 py-3.5">@tx.Description</td>
+                                    <td class="px-5 py-3.5 text-foreground-muted">@(tx.Category ?? "—")</td>
+                                    <td class="px-5 py-3.5 text-right font-mono @(tx.Amount < 0 ? "text-brand" : "text-success")">
+                                        @tx.Amount.ToString("C")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private decimal _netWorth;
+    private decimal _monthlyIncome;
+    private decimal _monthlyExpenses;
+    private List<RecentTx> _recentTransactions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.Delay(400); // simulate load – replace later
+
+        _netWorth = 16228.45m;
+        _monthlyIncome = 5200m;
+        _monthlyExpenses = 1842.30m;
+
+        _recentTransactions =
+        [
+            new() { Date = DateTime.Today.AddDays(-1), Description = "Whole Foods", Category = "Groceries", Amount = -67.89m },
+            new() { Date = DateTime.Today.AddDays(-3), Description = "Freelance payment", Category = "Income", Amount = 850m },
+            new() { Date = DateTime.Today.AddDays(-5), Description = "Amazon", Category = "Shopping", Amount = -156.40m }
+        ];
+
+        _isLoading = false;
+    }
+
+    private sealed class RecentTx
+    {
+        public DateTime Date { get; set; }
+        public string Description { get; set; } = "";
+        public string? Category { get; set; }
+        public decimal Amount { get; set; }
+    }
+}
