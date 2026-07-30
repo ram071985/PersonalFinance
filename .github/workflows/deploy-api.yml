@@ -12,7 +12,7 @@ on:
 
 env:
   AZURE_WEBAPP_NAME: personalfinance-api          # ← change if your app name is different
-  DOTNET_VERSION: '8.0.x'
+  DOTNET_VERSION: '10.0.x'
   PROJECT_PATH: './PersonalFinance.Api/PersonalFinance.Api.csproj'
 
 jobs:
