@@ -3,9 +3,19 @@ using PersonalFinance.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHttpClient<FinanceApiClient>(client =>
+builder.Services.AddHttpClient<FinanceApiClient>((serviceProvider, client) =>
 {
-    client.BaseAddress = new Uri("https://localhost:7000/"); // your API URL
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    
+    // This will correctly pick up Azure App Settings
+    var apiBaseUrl = configuration["ApiBaseUrl"];
+    
+    if (string.IsNullOrWhiteSpace(apiBaseUrl))
+    {
+        apiBaseUrl = "https://localhost:7000/";
+    }
+    
+    client.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
 });
 
 // Add services to the container.
