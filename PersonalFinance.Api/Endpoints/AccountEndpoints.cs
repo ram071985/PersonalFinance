@@ -1,5 +1,7 @@
+using PersonalFinance.Core.Dtos.Accounts;
 using PersonalFinance.Core.Entities;
 using PersonalFinance.Core.Interfaces;
+using PersonalFinance.Core.Mappings;
 
 namespace PersonalFinance.Api.Endpoints;
 
@@ -21,13 +23,13 @@ public static class AccountEndpoints
         group.MapGet("/total-balance", async (IAccountService service) =>
             Results.Ok(new { TotalBalance = await service.GetTotalBalanceAsync() }));
 
-        group.MapPost("/", async (Account account, IAccountService service) =>
+        group.MapPost("/", async (CreateAccountRequest account, IAccountService service) =>
         {
             var created = await service.CreateAsync(account);
             return Results.Created($"/api/accounts/{created.Id}", created);
         });
 
-        group.MapPut("/{id:int}", async (int id, Account input, IAccountService service) =>
+        group.MapPut("/{id:int}", async (int id, UpdateAccountRequest input, IAccountService service) =>
         {
             var updated = await service.UpdateAsync(id, input);
             return updated ? Results.NoContent() : Results.NotFound();

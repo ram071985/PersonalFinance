@@ -29,7 +29,8 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
                 "https://localhost:7001", "http://localhost:5001",
-                "https://localhost:7150", "http://localhost:5150")
+                "https://localhost:7150", "http://localhost:5150",
+                "https://personalfinance-web-fzc5ggcccpb2ayf7.centralus-01.azurewebsites.net")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });

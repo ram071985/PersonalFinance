@@ -1,3 +1,4 @@
+using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Entities;
 using PersonalFinance.Core.Enums;
 using PersonalFinance.Core.Interfaces;
@@ -22,13 +23,13 @@ public static class CategoryEndpoints
             return cat is null ? Results.NotFound() : Results.Ok(cat);
         });
 
-        group.MapPost("/", async (Category category, ICategoryService service) =>
+        group.MapPost("/", async (CreateCategoryRequest category, ICategoryService service) =>
         {
             var created = await service.CreateAsync(category);
             return Results.Created($"/api/categories/{created.Id}", created);
         });
 
-        group.MapPut("/{id:int}", async (int id, Category input, ICategoryService service) =>
+        group.MapPut("/{id:int}", async (int id, UpdateCategoryRequest input, ICategoryService service) =>
         {
             var updated = await service.UpdateAsync(id, input);
             return updated ? Results.NoContent() : Results.NotFound();

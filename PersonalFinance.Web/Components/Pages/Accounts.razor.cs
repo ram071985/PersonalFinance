@@ -1,80 +1,80 @@
 using Microsoft.AspNetCore.Components;
+using PersonalFinance.Core.Dtos.Accounts;
+using PersonalFinance.Core.Enums;
 using PersonalFinance.Models;
+using PersonalFinance.Web.Models;
 
 namespace PersonalFinance.Components.Pages;
 
 public partial class Accounts : ComponentBase
 {
-    private List<Account> _accounts = new();
-    private Account formModel = new();
+    private List<AccountDto> _accounts = new();
+    private AccountFormModel _formModel = new();
     private bool _isLoading = true;
     private bool _showForm;
-    private bool _isEdit;
-    private int _nextId = 1;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
     {
-        // Simulate network delay – replace with real API call later
-        await Task.Delay(600);
-        
-        // Temporary seed data so the page isn’t empty while we build the UI
-        _accounts =
-        [
-            new Account { Id = _nextId++, Name = "Chase Checking", Type = "Checking", Balance = 4250.75m, Institution = "Chase" },
-            new Account { Id = _nextId++, Name = "Ally Savings", Type = "Savings", Balance = 12800.00m, Institution = "Ally" },
-            new Account { Id = _nextId++, Name = "Amex Blue Cash", Type = "Credit Card", Balance = -842.30m, Institution = "American Express" }
-        ];
-
+        _isLoading = true;
+        try
+        {
+            _accounts = await Api.GetAccountsAsync();
+        }
+        catch
+        {
+            _accounts = new();
+        }
         _isLoading = false;
     }
 
     private void ShowCreateForm()
     {
-        formModel = new Account { Type = "Checking" };
-        _isEdit = false;
+        _formModel = new AccountFormModel { Type = AccountType.Checking };
         _showForm = true;
     }
 
-    private void ShowEditForm(Account account)
+    private void ShowEditForm(AccountDto account)
     {
-        // Clone – never mutate the list item until the user saves
-        formModel = new Account
-        {
-            Id = account.Id,
-            Name = account.Name,
-            Type = account.Type,
-            Balance = account.Balance,
-            Institution = account.Institution,
-            Notes = account.Notes
-        };
-        _isEdit = true;
+        _formModel = account.ToForm();   // existing FormMappings
         _showForm = true;
     }
 
-    private void HideForm() => _showForm = false;
-
-    private void HandleSave(Account account)
+    private void HideForm()
     {
-        if (_isEdit)
-        {
-            var existing = _accounts.FirstOrDefault(a => a.Id == account.Id);
-            if (existing is not null)
-            {
-                existing.Name = account.Name;
-                existing.Type = account.Type;
-                existing.Balance = account.Balance;
-                existing.Institution = account.Institution;
-                existing.Notes = account.Notes;
-            }
-        }
-        else
-        {
-            account.Id = _nextId++;
-            _accounts.Add(account);
-        }
-
         _showForm = false;
+        _formModel = new();
     }
 
-    private void Delete(int id) => _accounts.RemoveAll(a => a.Id == id);
+    private async Task HandleSaveAsync(AccountFormModel model)
+    {
+        model.IsSaving = true;
+        model.ErrorMessage = null;
+
+        try
+        {
+            if (model.Id is null)
+                await Api.CreateAccountAsync(model.ToCreateRequest());
+            else
+                await Api.UpdateAccountAsync(model.Id.Value, model.ToUpdateRequest());
+
+            _showForm = false;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            model.ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            model.IsSaving = false;
+        }
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        await Api.DeleteAccountAsync(id);
+        await LoadAsync();
+    }
 }

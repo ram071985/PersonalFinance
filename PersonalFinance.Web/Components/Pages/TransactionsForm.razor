@@ -1,0 +1,110 @@
+@using PersonalFinance.Core.Dtos
+@using PersonalFinance.Core.Dtos.Accounts
+@using PersonalFinance.Core.Dtos.Categories
+@using PersonalFinance.Core.Enums
+@using PersonalFinance.Web.Models
+
+<div class="mb-6 rounded-xl border border-border bg-surface p-6">
+    <h2 class="mb-5 text-lg font-semibold text-foreground">
+        @(Model.Id is null ? "New Transaction" : "Edit Transaction")
+    </h2>
+
+    <EditForm Model="Model" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Date</label>
+                <InputDate @bind-Value="Model.Date"
+                           class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
+            </div>
+            <div>
+                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Type</label>
+                <InputSelect @bind-Value="Model.Type"
+                             class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
+                    @foreach (TransactionType t in Enum.GetValues<TransactionType>())
+                    {
+                        <option value="@t">@t</option>
+                    }
+                </InputSelect>
+            </div>
+            <div>
+                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Account</label>
+                <InputSelect @bind-Value="Model.AccountId"
+                             class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
+                    <option value="0">Select account…</option>
+                    @foreach (var a in Accounts)
+                    {
+                        <option value="@a.Id">@a.Name</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => Model.AccountId" class="text-xs text-brand" />
+            </div>
+            <div>
+                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Category</label>
+                <InputSelect @bind-Value="Model.CategoryId"
+                             class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
+                    <option value="">— None —</option>
+                    @foreach (var c in Categories)
+                    {
+                        <option value="@c.Id">@c.Icon @c.Name</option>
+                    }
+                </InputSelect>
+            </div>
+            <div>
+                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Amount</label>
+                <InputNumber @bind-Value="Model.Amount" step="0.01"
+                             class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
+                <ValidationMessage For="() => Model.Amount" class="text-xs text-brand" />
+            </div>
+            @if (Model.Type == TransactionType.Transfer)
+            {
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Transfer To</label>
+                    <InputSelect @bind-Value="Model.TransferToAccountId"
+                                 class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
+                        <option value="">Select account…</option>
+                        @foreach (var a in Accounts.Where(x => x.Id != Model.AccountId))
+                        {
+                            <option value="@a.Id">@a.Name</option>
+                        }
+                    </InputSelect>
+                </div>
+            }
+            <div class="sm:col-span-2">
+                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Description</label>
+                <InputText @bind-Value="Model.Description"
+                           class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
+                <ValidationMessage For="() => Model.Description" class="text-xs text-brand" />
+            </div>
+            <div class="sm:col-span-2">
+                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Notes</label>
+                <InputTextArea @bind-Value="Model.Notes" rows="2"
+                               class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <p class="mt-3 text-sm text-brand">@Model.ErrorMessage</p>
+        }
+
+        <div class="mt-6 flex gap-3">
+            <button type="submit" class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-60" disabled="@Model.IsSaving">
+                @(Model.IsSaving ? "Saving…" : "Save")
+            </button>
+            <button type="button" class="rounded-lg border border-border px-4 py-2 text-sm text-foreground-muted hover:bg-surface-2" @onclick="OnCancel" disabled="@Model.IsSaving">
+                Cancel
+            </button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TransactionFormModel Model { get; set; } = new();
+    [Parameter] public List<AccountDto> Accounts { get; set; } = new();
+    [Parameter] public List<CategoryDto> Categories { get; set; } = new();
+    [Parameter] public EventCallback<TransactionFormModel> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private async Task HandleValidSubmit() => await OnSave.InvokeAsync(Model);
+}

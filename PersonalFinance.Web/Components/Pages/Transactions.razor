@@ -1,27 +1,86 @@
 @page "/transactions"
+@using PersonalFinance.Core.Enums
 @rendermode InteractiveAuto
 
 <PageTitle>Transactions</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Transactions</h1>
-    <button class="btn btn-primary">Add Transaction</button>
+<div class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-foreground">Transactions</h1>
+    @if (!_isLoading && !_showForm)
+    {
+        <button class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover" @onclick="ShowCreateForm">
+            Add Transaction
+        </button>
+    }
 </div>
 
-<table class="table table-hover bg-white">
-    <thead>
-    <tr>
-        <th>Date</th>
-        <th>Description</th>
-        <th>Category</th>
-        <th>Account</th>
-        <th class="text-end">Amount</th>
-        <th></th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr>
-        <td colspan="6" class="text-muted text-center py-4">No transactions yet.</td>
-    </tr>
-    </tbody>
-</table>
+@if (_isLoading)
+{
+    <LoadingSpinner Message="Loading transactions…" />
+}
+else
+{
+    @if (_showForm)
+    {
+        <TransactionForm Model="_formModel"
+                         Accounts="_accounts"
+                         Categories="_categories"
+                         OnSave="HandleSaveAsync"
+                         OnCancel="HideForm"/>
+    }
+
+    <div class="overflow-hidden rounded-xl border border-border bg-surface">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-surface-2 text-xs uppercase tracking-wider text-foreground-muted">
+                <tr>
+                    <th class="px-5 py-3">Date</th>
+                    <th class="px-5 py-3">Description</th>
+                    <th class="hidden px-5 py-3 md:table-cell">Account</th>
+                    <th class="hidden px-5 py-3 lg:table-cell">Category</th>
+                    <th class="px-5 py-3">Type</th>
+                    <th class="px-5 py-3 text-right">Amount</th>
+                    <th class="px-5 py-3 text-right">Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (_transactions.Count == 0)
+                {
+                    <tr><td colspan="7" class="px-5 py-8 text-center text-foreground-muted">No transactions yet.</td></tr>
+                }
+                else
+                {
+                    @foreach (var tx in _transactions)
+                    {
+                        <tr class="border-t border-border hover:bg-surface-2">
+                            <td class="px-5 py-3.5">@tx.Date.ToString("MMM d, yyyy")</td>
+                            <td class="px-5 py-3.5">@tx.Description</td>
+                            <td class="hidden px-5 py-3.5 md:table-cell">@(string.IsNullOrEmpty(tx.AccountName) ? "—" : tx.AccountName)</td>
+                            <td class="hidden px-5 py-3.5 lg:table-cell">
+                                @if (!string.IsNullOrEmpty(tx.CategoryName))
+                                {
+                                    <span>@tx.CategoryIcon @tx.CategoryName</span>
+                                }
+                                else
+                                {
+                                    <span class="text-foreground-muted">—</span>
+                                }
+                            </td>
+                            <td class="px-5 py-3.5">@tx.Type</td>
+                            <td class="px-5 py-3.5 text-right font-mono @(tx.Type == TransactionType.Income ? "text-success" : "text-brand")">
+                                @(tx.Type == TransactionType.Income ? "+" : "-")@tx.Amount.ToString("C")
+                            </td>
+                            <td class="px-5 py-3.5 text-right">
+                                <div class="flex flex-col gap-1.5 sm:flex-row sm:justify-end sm:gap-2">
+                                    <button class="rounded-md border border-border px-3 py-1.5 text-xs text-foreground-muted hover:bg-surface-2" @onclick="() => ShowEditForm(tx)">Edit</button>
+                                    <button class="rounded-md border border-brand px-3 py-1.5 text-xs text-brand hover:bg-brand hover:text-white" @onclick="() => DeleteAsync(tx.Id)">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

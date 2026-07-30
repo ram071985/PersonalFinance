@@ -1,5 +1,7 @@
-using PersonalFinance.Core.Entities;
+using PersonalFinance.Core.Dtos;
+using PersonalFinance.Core.Dtos.Accounts;
 using PersonalFinance.Core.Interfaces;
+using PersonalFinance.Core.Mappings;
 
 namespace PersonalFinance.Infrastructure.Services;
 
@@ -9,24 +11,27 @@ public class AccountService : IAccountService
 
     public AccountService(IAccountRepository repo) => _repo = repo;
 
-    public Task<IEnumerable<Account>> GetAllAsync() => _repo.GetAllAsync();
+    public async Task<IEnumerable<AccountDto>> GetAllAsync() =>
+        (await _repo.GetAllAsync()).ToDtoList();
 
-    public Task<Account?> GetByIdAsync(int id) => _repo.GetByIdAsync(id);
+    public async Task<AccountDto?> GetByIdAsync(int id)
+    {
+        var account = await _repo.GetByIdAsync(id);
+        return account?.ToDto();
+    }
 
-    public Task<Account> CreateAsync(Account account) => _repo.AddAsync(account);
+    public async Task<AccountDto> CreateAsync(CreateAccountRequest request)
+    {
+        var created = await _repo.AddAsync(request.ToEntity());
+        return created.ToDto();
+    }
 
-    public async Task<bool> UpdateAsync(int id, Account input)
+    public async Task<bool> UpdateAsync(int id, UpdateAccountRequest request)
     {
         var existing = await _repo.GetByIdAsync(id);
         if (existing is null) return false;
 
-        existing.Name = input.Name;
-        existing.Type = input.Type;
-        existing.Balance = input.Balance;
-        existing.Institution = input.Institution;
-        existing.Notes = input.Notes;
-        existing.IsActive = input.IsActive;
-
+        existing.ApplyUpdate(request);
         await _repo.UpdateAsync(existing);
         return true;
     }

@@ -1,14 +1,14 @@
 @using PersonalFinance.Core.Enums
+@using PersonalFinance.Models
 @using PersonalFinance.Web.Models
 
 <div class="mb-6 rounded-xl border border-border bg-surface p-6">
     <h2 class="mb-5 text-lg font-semibold text-foreground">
-        @(Model.Id is null ? "New Account" : "Edit Account")
+        @(Model.Id is null ? "New Category" : "Edit Category")
     </h2>
 
     <EditForm Model="Model" OnValidSubmit="HandleValidSubmit">
         <DataAnnotationsValidator />
-
         <div class="grid gap-4 sm:grid-cols-2">
             <div>
                 <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Name</label>
@@ -16,34 +16,25 @@
                            class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
                 <ValidationMessage For="() => Model.Name" class="text-xs text-brand" />
             </div>
-
             <div>
                 <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Type</label>
                 <InputSelect @bind-Value="Model.Type"
                              class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
-                    @foreach (AccountType t in Enum.GetValues<AccountType>())
+                    @foreach (CategoryType t in Enum.GetValues<CategoryType>())
                     {
                         <option value="@t">@t</option>
                     }
                 </InputSelect>
             </div>
-
             <div>
-                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Balance</label>
-                <InputNumber @bind-Value="Model.Balance" step="0.01"
-                             class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
-            </div>
-
-            <div>
-                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Institution</label>
-                <InputText @bind-Value="Model.Institution"
+                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Icon (emoji)</label>
+                <InputText @bind-Value="Model.Icon" placeholder="🛒"
                            class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
             </div>
-
-            <div class="sm:col-span-2">
-                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Notes</label>
-                <InputTextArea @bind-Value="Model.Notes" rows="2"
-                               class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
+            <div>
+                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Color (hex)</label>
+                <InputText @bind-Value="Model.Color" placeholder="#ef4444"
+                           class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
             </div>
         </div>
 
@@ -53,15 +44,10 @@
         }
 
         <div class="mt-6 flex gap-3">
-            <button type="submit"
-                    class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-60"
-                    disabled="@Model.IsSaving">
+            <button type="submit" class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-60" disabled="@Model.IsSaving">
                 @(Model.IsSaving ? "Saving…" : "Save")
             </button>
-            <button type="button"
-                    class="rounded-lg border border-border px-4 py-2 text-sm text-foreground-muted hover:bg-surface-2 hover:text-foreground"
-                    @onclick="OnCancel"
-                    disabled="@Model.IsSaving">
+            <button type="button" class="rounded-lg border border-border px-4 py-2 text-sm text-foreground-muted hover:bg-surface-2" @onclick="OnCancel" disabled="@Model.IsSaving">
                 Cancel
             </button>
         </div>
@@ -69,8 +55,8 @@
 </div>
 
 @code {
-    [Parameter, EditorRequired] public AccountFormModel Model { get; set; } = new();
-    [Parameter] public EventCallback<AccountFormModel> OnSave { get; set; }
+    [Parameter, EditorRequired] public CategoryFormModel Model { get; set; } = new();
+    [Parameter] public EventCallback<CategoryFormModel> OnSave { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 
     private async Task HandleValidSubmit() => await OnSave.InvokeAsync(Model);

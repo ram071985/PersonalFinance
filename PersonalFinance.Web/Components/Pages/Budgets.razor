@@ -3,24 +3,90 @@
 
 <PageTitle>Budgets</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Budgets</h1>
-    <button class="btn btn-primary">Add Budget</button>
+<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <h1 class="text-2xl font-bold text-foreground">Budgets</h1>
+    <div class="flex flex-wrap items-center gap-3">
+        <select @bind="_selectedMonth" @bind:after="LoadAsync"
+                class="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground">
+            @for (var m = 1; m <= 12; m++)
+            {
+                <option value="@m">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
+            }
+        </select>
+        <select @bind="_selectedYear" @bind:after="LoadAsync"
+                class="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground">
+            @for (var y = DateTime.Now.Year - 1; y <= DateTime.Now.Year + 1; y++)
+            {
+                <option value="@y">@y</option>
+            }
+        </select>
+        @if (!_isLoading && !_showForm)
+        {
+            <button class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover" @onclick="ShowCreateForm">
+                Add Budget
+            </button>
+        }
+    </div>
 </div>
 
-<table class="table table-hover bg-white">
-    <thead>
-    <tr>
-        <th>Category</th>
-        <th>Monthly Limit</th>
-        <th>Spent</th>
-        <th>Remaining</th>
-        <th></th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr>
-        <td colspan="5" class="text-muted text-center py-4">No budgets yet.</td>
-    </tr>
-    </tbody>
-</table>
+@if (_isLoading)
+{
+    <LoadingSpinner Message="Loading budgets…" />
+}
+else
+{
+    @if (_showForm)
+    {
+        <BudgetForm Model="_formModel"
+                    Categories="_expenseCategories"
+                    OnSave="HandleSaveAsync"
+                    OnCancel="HideForm"/>
+    }
+
+    <div class="overflow-hidden rounded-xl border border-border bg-surface">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-surface-2 text-xs uppercase tracking-wider text-foreground-muted">
+                <tr>
+                    <th class="px-5 py-3">Category</th>
+                    <th class="px-5 py-3 text-right">Limit</th>
+                    <th class="hidden px-5 py-3 md:table-cell">Notes</th>
+                    <th class="px-5 py-3 text-right">Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (_budgets.Count == 0)
+                {
+                    <tr><td colspan="4" class="px-5 py-8 text-center text-foreground-muted">No budgets for this month.</td></tr>
+                }
+                else
+                {
+                    @foreach (var b in _budgets)
+                    {
+                        <tr class="border-t border-border hover:bg-surface-2">
+                            <td class="px-5 py-3.5">
+                                @if (!string.IsNullOrEmpty(b.CategoryName))
+                                {
+                                    <span>@b.CategoryIcon @b.CategoryName</span>
+                                }
+                                else
+                                {
+                                    <span>—</span>
+                                }
+                            </td>
+                            <td class="px-5 py-3.5 text-right font-mono">@b.Amount.ToString("C")</td>
+                            <td class="hidden px-5 py-3.5 text-foreground-muted md:table-cell">@(b.Notes ?? "—")</td>
+                            <td class="px-5 py-3.5 text-right">
+                                <div class="flex flex-col gap-1.5 sm:flex-row sm:justify-end sm:gap-2">
+                                    <button class="rounded-md border border-border px-3 py-1.5 text-xs text-foreground-muted hover:bg-surface-2" @onclick="() => ShowEditForm(b)">Edit</button>
+                                    <button class="rounded-md border border-brand px-3 py-1.5 text-xs text-brand hover:bg-brand hover:text-white" @onclick="() => DeleteAsync(b.Id)">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

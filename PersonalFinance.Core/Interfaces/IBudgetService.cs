@@ -1,13 +1,14 @@
-using PersonalFinance.Core.Entities;
+using PersonalFinance.Core.Dtos;
+using PersonalFinance.Core.Dtos.Budgets;
 
 namespace PersonalFinance.Core.Interfaces;
 
 public interface IBudgetService
 {
-    Task<IEnumerable<Budget>> GetAllAsync();
-    Task<IEnumerable<Budget>> GetByMonthAsync(int year, int month);
-    Task<Budget?> GetByIdAsync(int id);
-    Task<Budget> CreateAsync(Budget budget);
-    Task<bool> UpdateAsync(int id, Budget input);
+    Task<IEnumerable<BudgetDto>> GetAllAsync();
+    Task<IEnumerable<BudgetDto>> GetByMonthAsync(int year, int month);
+    Task<BudgetDto?> GetByIdAsync(int id);
+    Task<BudgetDto> CreateAsync(CreateBudgetRequest request);
+    Task<bool> UpdateAsync(int id, UpdateBudgetRequest request);
     Task DeleteAsync(int id);
 }

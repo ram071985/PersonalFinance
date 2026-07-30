@@ -1,6 +1,10 @@
 @page "/accounts"
+@using PersonalFinance.Core.Dtos
+@using PersonalFinance.Core.Enums
+@using PersonalFinance.Web.Models
+@using PersonalFinance.Web.Services
+@inject FinanceApiClient Api
 @rendermode InteractiveServer
-@namespace PersonalFinance.Components.Pages
 
 <PageTitle>Accounts</PageTitle>
 
@@ -21,7 +25,12 @@
 }
 else
 {
-    @* form goes here later *@
+    @if (_showForm)
+    {
+        <AccountForm Model="_formModel"
+                     OnSave="HandleSaveAsync"
+                     OnCancel="HideForm" />
+    }
 
     <div class="overflow-hidden rounded-xl border border-border bg-surface">
         <div class="overflow-x-auto">
@@ -36,31 +45,43 @@ else
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var account in _accounts)
+                    @if (_accounts.Count == 0)
                     {
-                        <tr class="border-t border-border hover:bg-surface-2">
-                            <td class="px-5 py-3.5 font-medium">@account.Name</td>
-                            <td class="px-5 py-3.5">@account.Type</td>
-                            <td class="hidden px-5 py-3.5 md:table-cell">@(account.Institution ?? "—")</td>
-                            <td class="px-5 py-3.5 text-right font-mono @(account.Balance < 0 ? "text-brand" : "")">
-                                @account.Balance.ToString("C")
-                            </td>
-                            <td class="px-5 py-3.5 text-right">
-                                <div class="flex flex-col gap-1.5 sm:flex-row sm:justify-end sm:gap-2">
-                                    <button class="rounded-md border border-border px-3 py-1.5 text-xs text-foreground-muted hover:bg-surface-2 hover:text-foreground"
-                                            @onclick="() => ShowEditForm(account)">
-                                        Edit
-                                    </button>
-                                    <button class="rounded-md border border-brand px-3 py-1.5 text-xs text-brand hover:bg-brand hover:text-white"
-                                            @onclick="() => Delete(account.Id)">
-                                        Delete
-                                    </button>
-                                </div>
+                        <tr>
+                            <td colspan="5" class="px-5 py-8 text-center text-foreground-muted">
+                                No accounts yet. Create one to get started.
                             </td>
                         </tr>
+                    }
+                    else
+                    {
+                        @foreach (var account in _accounts)
+                        {
+                            <tr class="border-t border-border hover:bg-surface-2">
+                                <td class="px-5 py-3.5 font-medium">@account.Name</td>
+                                <td class="px-5 py-3.5">@account.Type</td>
+                                <td class="hidden px-5 py-3.5 md:table-cell">@(account.Institution ?? "—")</td>
+                                <td class="px-5 py-3.5 text-right font-mono @(account.Balance < 0 ? "text-brand" : "")">
+                                    @account.Balance.ToString("C")
+                                </td>
+                                <td class="px-5 py-3.5 text-right">
+                                    <div class="flex flex-col gap-1.5 sm:flex-row sm:justify-end sm:gap-2">
+                                        <button class="rounded-md border border-border px-3 py-1.5 text-xs text-foreground-muted hover:bg-surface-2 hover:text-foreground"
+                                                @onclick="() => ShowEditForm(account)">
+                                            Edit
+                                        </button>
+                                        <button class="rounded-md border border-brand px-3 py-1.5 text-xs text-brand hover:bg-brand hover:text-white"
+                                                @onclick="() => DeleteAsync(account.Id)">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
                     }
                 </tbody>
             </table>
         </div>
     </div>
 }
+

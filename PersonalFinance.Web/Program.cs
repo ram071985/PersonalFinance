@@ -1,6 +1,12 @@
 using PersonalFinance.Components;
+using PersonalFinance.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHttpClient<FinanceApiClient>(client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7000/"); // your API URL
+});
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

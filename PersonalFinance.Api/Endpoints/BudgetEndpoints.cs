@@ -1,3 +1,4 @@
+using PersonalFinance.Core.Dtos.Budgets;
 using PersonalFinance.Core.Entities;
 using PersonalFinance.Core.Interfaces;
 
@@ -21,13 +22,13 @@ public static class BudgetEndpoints
             return budget is null ? Results.NotFound() : Results.Ok(budget);
         });
 
-        group.MapPost("/", async (Budget budget, IBudgetService service) =>
+        group.MapPost("/", async (CreateBudgetRequest budget, IBudgetService service) =>
         {
             var created = await service.CreateAsync(budget);
             return Results.Created($"/api/budgets/{created.Id}", created);
         });
 
-        group.MapPut("/{id:int}", async (int id, Budget input, IBudgetService service) =>
+        group.MapPut("/{id:int}", async (int id, UpdateBudgetRequest input, IBudgetService service) =>
         {
             var updated = await service.UpdateAsync(id, input);
             return updated ? Results.NoContent() : Results.NotFound();

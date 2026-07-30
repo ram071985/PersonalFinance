@@ -1,3 +1,5 @@
+using PersonalFinance.Core.Dtos.Accounts;
+using PersonalFinance.Core.Dtos.Transactions;
 using PersonalFinance.Core.Entities;
 using PersonalFinance.Core.Interfaces;
 
@@ -24,13 +26,13 @@ public static class TransactionEndpoints
             return tx is null ? Results.NotFound() : Results.Ok(tx);
         });
 
-        group.MapPost("/", async (Transaction transaction, ITransactionService service) =>
+        group.MapPost("/", async (CreateTransactionRequest transaction, ITransactionService service) =>
         {
             var created = await service.CreateAsync(transaction);
             return Results.Created($"/api/transactions/{created.Id}", created);
         });
 
-        group.MapPut("/{id:int}", async (int id, Transaction input, ITransactionService service) =>
+        group.MapPut("/{id:int}", async (int id, UpdateTransactionRequest input, ITransactionService service) =>
         {
             var updated = await service.UpdateAsync(id, input);
             return updated ? Results.NoContent() : Results.NotFound();
