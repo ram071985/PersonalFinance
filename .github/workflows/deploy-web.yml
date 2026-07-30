@@ -8,6 +8,7 @@ on:
       - 'PersonalFinance.Web/**'
       - 'PersonalFinance.Core/**'
       - '.github/workflows/deploy-web.yml'
+      
 
 env:
   AZURE_WEBAPP_NAME: personalfinance-web          # ← change if your app name is different
