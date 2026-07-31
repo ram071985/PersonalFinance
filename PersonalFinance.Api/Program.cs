@@ -10,21 +10,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-var conn = builder.Configuration.GetConnectionString("DefaultConnection");
-
-Console.WriteLine("=== CONNECTION STRING CHECK ===");
-Console.WriteLine($"Is null or empty: {string.IsNullOrWhiteSpace(conn)}");
-Console.WriteLine($"Length: {conn?.Length ?? 0}");
-
-if (!string.IsNullOrWhiteSpace(conn))
-{
-    // Print only the safe parts
-    var safe = conn
-        .Replace("Authentication=Active Directory Managed Identity", "Authentication=***")
-        .Replace("Password=", "Password=***");
-    Console.WriteLine($"Safe value: {safe}");
-}
-Console.WriteLine("================================");
 
 // Repositories
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
@@ -57,13 +42,6 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    await db.Database.EnsureCreatedAsync();   // creates tables only if they don't exist
-    await SeedData.InitializeAsync(db);
-}
 // // DB bootstrap + seed — only in Development
 // if (app.Environment.IsDevelopment())
 // {
