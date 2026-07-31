@@ -61,10 +61,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // Force the model to be applied (creates tables in the pfa schema)
-    await db.Database.EnsureDeletedAsync();   // only for first-time setup – REMOVE later
-    await db.Database.EnsureCreatedAsync();
-    
+    await db.Database.EnsureCreatedAsync();   // creates tables only if they don't exist
     await SeedData.InitializeAsync(db);
 }
 // // DB bootstrap + seed — only in Development
