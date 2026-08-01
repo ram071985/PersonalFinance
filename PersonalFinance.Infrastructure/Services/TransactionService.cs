@@ -1,7 +1,7 @@
-using PersonalFinance.Core.Dtos;
+using PersonalFinance.Core.Common;
+using PersonalFinance.Core.Dtos.Transactions;
 using PersonalFinance.Core.Interfaces;
 using PersonalFinance.Core.Mappings;
-using PersonalFinance.Core.Dtos.Transactions;
 
 namespace PersonalFinance.Infrastructure.Services;
 
@@ -34,15 +34,16 @@ public class TransactionService : ITransactionService
         return full!.ToDto();
     }
 
-    public async Task<bool> UpdateAsync(int id, UpdateTransactionRequest request)
+    public async Task<Result> UpdateAsync(int id, UpdateTransactionRequest request)
     {
         var existing = await _repo.GetByIdAsync(id);
-        if (existing is null) return false;
+        if (existing is null)
+            return Result.Fail("Transaction not found.");
 
-        // repo owns reverse-old / apply-new balance logic
+        // repo owns reverse-old / apply-new balance logic via Account domain methods
         await _repo.UpdateAsync(request.ToEntity(id));
-        return true;
+        return Result.Ok();
     }
 
-    public Task DeleteAsync(int id) => _repo.DeleteAsync(id);
+    public Task<bool> DeleteAsync(int id) => _repo.DeleteAsync(id);
 }

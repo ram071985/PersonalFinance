@@ -10,5 +10,5 @@ public interface IBudgetRepository
     Task<Budget?> GetByCategoryAndMonthAsync(int categoryId, int year, int month);
     Task<Budget> AddAsync(Budget budget);
     Task UpdateAsync(Budget budget);
-    Task DeleteAsync(int id);
+    Task<bool> DeleteAsync(int id);
 }

@@ -11,7 +11,7 @@ public interface ITransactionRepository
     Task<Transaction?> GetByIdAsync(int id);
     Task<Transaction> AddAsync(Transaction transaction);
     Task UpdateAsync(Transaction transaction);
-    Task DeleteAsync(int id);
+    Task<bool> DeleteAsync(int id);
     Task<decimal> GetMonthlyIncomeAsync(int year, int month);
     Task<decimal> GetMonthlyExpensesAsync(int year, int month);
 }

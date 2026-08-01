@@ -1,4 +1,4 @@
-using PersonalFinance.Core.Dtos;
+using PersonalFinance.Core.Common;
 using PersonalFinance.Core.Dtos.Accounts;
 using PersonalFinance.Core.Interfaces;
 using PersonalFinance.Core.Mappings;
@@ -26,17 +26,18 @@ public class AccountService : IAccountService
         return created.ToDto();
     }
 
-    public async Task<bool> UpdateAsync(int id, UpdateAccountRequest request)
+    public async Task<Result> UpdateAsync(int id, UpdateAccountRequest request)
     {
         var existing = await _repo.GetByIdAsync(id);
-        if (existing is null) return false;
+        if (existing is null)
+            return Result.Fail("Account not found.");
 
         existing.ApplyUpdate(request);
         await _repo.UpdateAsync(existing);
-        return true;
+        return Result.Ok();
     }
 
-    public Task DeleteAsync(int id) => _repo.DeleteAsync(id);
+    public Task<bool> DeleteAsync(int id) => _repo.DeleteAsync(id);
 
     public Task<decimal> GetTotalBalanceAsync() => _repo.GetTotalBalanceAsync();
 }

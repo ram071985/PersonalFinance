@@ -1,4 +1,5 @@
 using Moq;
+using PersonalFinance.Core.Common;
 using PersonalFinance.Core.Dtos.Accounts;
 using PersonalFinance.Core.Entities;
 using PersonalFinance.Core.Enums;
@@ -140,7 +141,7 @@ public class AccountServiceTests
 
         var result = await _sut.UpdateAsync(1, request);
 
-        Assert.That(result, Is.True);
+        Assert.That(result.IsSuccess, Is.True);
         Assert.That(existing.Name, Is.EqualTo("Updated Name"));
         Assert.That(existing.Type, Is.EqualTo(AccountType.Savings));
         Assert.That(existing.Balance, Is.EqualTo(250m));
@@ -155,17 +156,19 @@ public class AccountServiceTests
 
         var result = await _sut.UpdateAsync(99, new UpdateAccountRequest { Name = "X" });
 
-        Assert.That(result, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
+        Assert.That(result.Error, Is.EqualTo("Account not found."));
         _repo.Verify(r => r.UpdateAsync(It.IsAny<Account>()), Times.Never);
     }
 
     [Test]
     public async Task DeleteAsync_CallsRepository()
     {
-        _repo.Setup(r => r.DeleteAsync(5)).Returns(Task.CompletedTask);
+        _repo.Setup(r => r.DeleteAsync(5)).ReturnsAsync(true);
 
-        await _sut.DeleteAsync(5);
+        var deleted = await _sut.DeleteAsync(5);
 
+        Assert.That(deleted, Is.True);
         _repo.Verify(r => r.DeleteAsync(5), Times.Once);
     }
 

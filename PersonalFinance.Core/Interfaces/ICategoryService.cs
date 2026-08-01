@@ -1,4 +1,4 @@
-using PersonalFinance.Core.Dtos;
+using PersonalFinance.Core.Common;
 using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Enums;
 
@@ -10,6 +10,6 @@ public interface ICategoryService
     Task<IEnumerable<CategoryDto>> GetByTypeAsync(CategoryType type);
     Task<CategoryDto?> GetByIdAsync(int id);
     Task<CategoryDto> CreateAsync(CreateCategoryRequest request);
-    Task<bool> UpdateAsync(int id, UpdateCategoryRequest request);
-    Task DeleteAsync(int id);
+    Task<Result> UpdateAsync(int id, UpdateCategoryRequest request);
+    Task<bool> DeleteAsync(int id);
 }

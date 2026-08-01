@@ -1,4 +1,5 @@
 using Moq;
+using PersonalFinance.Core.Common;
 using PersonalFinance.Core.Dtos.Budgets;
 using PersonalFinance.Core.Entities;
 using PersonalFinance.Core.Interfaces;
@@ -131,7 +132,7 @@ public class BudgetServiceTests
 
         var result = await _sut.UpdateAsync(1, request);
 
-        Assert.That(result, Is.True);
+        Assert.That(result.IsSuccess, Is.True);
         Assert.That(existing.Amount, Is.EqualTo(500m));
         Assert.That(existing.Notes, Is.EqualTo("Increased budget"));
         _repo.Verify(r => r.UpdateAsync(existing), Times.Once);
@@ -150,17 +151,18 @@ public class BudgetServiceTests
             Month = 1
         });
 
-        Assert.That(result, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         _repo.Verify(r => r.UpdateAsync(It.IsAny<Budget>()), Times.Never);
     }
 
     [Test]
     public async Task DeleteAsync_CallsRepository()
     {
-        _repo.Setup(r => r.DeleteAsync(12)).Returns(Task.CompletedTask);
+        _repo.Setup(r => r.DeleteAsync(12)).ReturnsAsync(true);
 
-        await _sut.DeleteAsync(12);
+        var deleted = await _sut.DeleteAsync(12);
 
+        Assert.That(deleted, Is.True);
         _repo.Verify(r => r.DeleteAsync(12), Times.Once);
     }
 }

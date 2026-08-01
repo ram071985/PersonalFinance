@@ -56,12 +56,13 @@ public class CategoryRepository : ICategoryRepository
         await _db.SaveChangesAsync();
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
         var category = await GetByIdAsync(id);
-        if (category is null) return;
+        if (category is null) return false;
 
         category.IsActive = false;
         await _db.SaveChangesAsync();
+        return true;
     }
 }

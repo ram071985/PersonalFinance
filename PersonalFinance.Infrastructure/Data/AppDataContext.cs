@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PersonalFinance.Core.Entities;
 using PersonalFinance.Infrastructure.Identity;
@@ -44,7 +46,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             e.Property(x => x.Balance).HasPrecision(18, 2);
             e.Property(x => x.Institution).HasMaxLength(100);
             e.Property(x => x.Notes).HasMaxLength(500);
+            e.Property(x => x.RowVersion).IsRowVersion();
             e.HasIndex(x => x.IsActive);
+            e.HasIndex(x => x.UserId);
         });
 
         modelBuilder.Entity<Category>(e =>

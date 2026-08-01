@@ -1,4 +1,5 @@
 using Moq;
+using PersonalFinance.Core.Common;
 using PersonalFinance.Core.Dtos.Transactions;
 using PersonalFinance.Core.Entities;
 using PersonalFinance.Core.Enums;
@@ -148,7 +149,7 @@ public class TransactionServiceTests
 
         var result = await _sut.UpdateAsync(1, request);
 
-        Assert.That(result, Is.True);
+        Assert.That(result.IsSuccess, Is.True);
         _repo.Verify(r => r.UpdateAsync(It.Is<Transaction>(t =>
             t.Id == 1 && t.Amount == 50m && t.Description == "Updated coffee")), Times.Once);
     }
@@ -166,17 +167,18 @@ public class TransactionServiceTests
             Date = DateTime.Today
         });
 
-        Assert.That(result, Is.False);
+        Assert.That(result.IsSuccess, Is.False);
         _repo.Verify(r => r.UpdateAsync(It.IsAny<Transaction>()), Times.Never);
     }
 
     [Test]
     public async Task DeleteAsync_CallsRepository()
     {
-        _repo.Setup(r => r.DeleteAsync(8)).Returns(Task.CompletedTask);
+        _repo.Setup(r => r.DeleteAsync(8)).ReturnsAsync(true);
 
-        await _sut.DeleteAsync(8);
+        var deleted = await _sut.DeleteAsync(8);
 
+        Assert.That(deleted, Is.True);
         _repo.Verify(r => r.DeleteAsync(8), Times.Once);
     }
 }

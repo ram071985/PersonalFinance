@@ -35,14 +35,16 @@ public static class TransactionEndpoints
 
         group.MapPut("/{id:int}", async (int id, UpdateTransactionRequest input, ITransactionService service) =>
         {
-            var updated = await service.UpdateAsync(id, input);
-            return updated ? Results.NoContent() : Results.NotFound();
+            var result = await service.UpdateAsync(id, input);
+            return result.IsSuccess
+                ? Results.NoContent()
+                : Results.NotFound(new { message = result.Error });
         }).Validate<UpdateTransactionRequest>();
 
         group.MapDelete("/{id:int}", async (int id, ITransactionService service) =>
         {
-            await service.DeleteAsync(id);
-            return Results.NoContent();
+            var deleted = await service.DeleteAsync(id);
+            return deleted ? Results.NoContent() : Results.NotFound();
         });
 
         return app;

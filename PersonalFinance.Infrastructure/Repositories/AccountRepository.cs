@@ -51,14 +51,15 @@ public class AccountRepository : IAccountRepository
         await _db.SaveChangesAsync();
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
         var account = await GetByIdAsync(id);
-        if (account is null) return;
+        if (account is null) return false;
 
         account.IsActive = false;
         account.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+        return true;
     }
 
     public async Task<decimal> GetTotalBalanceAsync() =>

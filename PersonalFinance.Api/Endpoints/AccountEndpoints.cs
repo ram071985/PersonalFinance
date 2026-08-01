@@ -32,14 +32,16 @@ public static class AccountEndpoints
 
         group.MapPut("/{id:int}", async (int id, UpdateAccountRequest input, IAccountService service) =>
         {
-            var updated = await service.UpdateAsync(id, input);
-            return updated ? Results.NoContent() : Results.NotFound();
+            var result = await service.UpdateAsync(id, input);
+            return result.IsSuccess
+                ? Results.NoContent()
+                : Results.NotFound(new { message = result.Error });
         }).Validate<UpdateAccountRequest>();
 
         group.MapDelete("/{id:int}", async (int id, IAccountService service) =>
         {
-            await service.DeleteAsync(id);
-            return Results.NoContent();
+            var deleted = await service.DeleteAsync(id);
+            return deleted ? Results.NoContent() : Results.NotFound();
         });
 
         return app;

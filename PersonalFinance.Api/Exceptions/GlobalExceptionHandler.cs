@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace PersonalFinance.Api.Exceptions;
 
@@ -61,6 +62,11 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 StatusCodes.Status401Unauthorized,
                 "Unauthorized",
                 exception.Message),
+
+            DbUpdateConcurrencyException => (
+                StatusCodes.Status409Conflict,
+                "Conflict",
+                "The record was modified by another request. Reload and try again."),
 
             KeyNotFoundException => (
                 StatusCodes.Status404NotFound,

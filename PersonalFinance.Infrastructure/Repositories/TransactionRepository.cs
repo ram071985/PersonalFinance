@@ -107,14 +107,15 @@ public class TransactionRepository : ITransactionRepository
         await _db.SaveChangesAsync();
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
         var transaction = await GetByIdAsync(id);
-        if (transaction is null) return;
+        if (transaction is null) return false;
 
         await ApplyBalanceAsync(transaction, apply: false);
         _db.Transactions.Remove(transaction);
         await _db.SaveChangesAsync();
+        return true;
     }
 
     public async Task<decimal> GetMonthlyIncomeAsync(int year, int month) =>
@@ -151,27 +152,30 @@ public class TransactionRepository : ITransactionRepository
             throw new UnauthorizedAccessException("Category does not belong to the current user.");
     }
 
+    /// <summary>
+    /// Loads owned accounts and applies domain balance methods on Account.
+    /// </summary>
     private async Task ApplyBalanceAsync(Transaction tx, bool apply)
     {
-        var sign = apply ? 1m : -1m;
+        var reverse = !apply;
         var account = await _db.Accounts
             .FirstOrDefaultAsync(a => a.Id == tx.AccountId && a.UserId == UserId);
 
         if (account is null) return;
 
-        if (tx.Type == TransactionType.Income)
-            account.Balance += tx.Amount * sign;
-        else if (tx.Type == TransactionType.Expense)
-            account.Balance -= tx.Amount * sign;
-        else if (tx.Type == TransactionType.Transfer && tx.TransferToAccountId.HasValue)
+        account.ApplyPrimaryEffect(tx.Type, tx.Amount, reverse);
+
+        if (tx.Type == TransactionType.Transfer && tx.TransferToAccountId.HasValue)
         {
-            account.Balance -= tx.Amount * sign;
             var toAccount = await _db.Accounts
                 .FirstOrDefaultAsync(a => a.Id == tx.TransferToAccountId.Value && a.UserId == UserId);
-            if (toAccount is not null)
-                toAccount.Balance += tx.Amount * sign;
-        }
+            if (toAccount is null) return;
 
-        account.UpdatedAt = DateTime.UtcNow;
+            if (reverse)
+                toAccount.ReverseTransferIn(tx.Amount);
+            else
+                toAccount.ApplyTransferIn(tx.Amount);
+        }
     }
 }
+

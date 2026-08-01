@@ -32,14 +32,16 @@ public static class BudgetEndpoints
 
         group.MapPut("/{id:int}", async (int id, UpdateBudgetRequest input, IBudgetService service) =>
         {
-            var updated = await service.UpdateAsync(id, input);
-            return updated ? Results.NoContent() : Results.NotFound();
+            var result = await service.UpdateAsync(id, input);
+            return result.IsSuccess
+                ? Results.NoContent()
+                : Results.NotFound(new { message = result.Error });
         }).Validate<UpdateBudgetRequest>();
 
         group.MapDelete("/{id:int}", async (int id, IBudgetService service) =>
         {
-            await service.DeleteAsync(id);
-            return Results.NoContent();
+            var deleted = await service.DeleteAsync(id);
+            return deleted ? Results.NoContent() : Results.NotFound();
         });
 
         return app;

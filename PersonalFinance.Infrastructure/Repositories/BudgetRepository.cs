@@ -80,12 +80,13 @@ public class BudgetRepository : IBudgetRepository
             throw new UnauthorizedAccessException("Category does not belong to the current user.");
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id)
     {
         var budget = await GetByIdAsync(id);
-        if (budget is null) return;
+        if (budget is null) return false;
 
         _db.Budgets.Remove(budget);
         await _db.SaveChangesAsync();
+        return true;
     }
 }
