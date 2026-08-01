@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Identity;
-using PersonalFinance.Infrastructure.Services;
-using PersonalFinance.Core.Dtos;
+using PersonalFinance.Api.Filters;
 using PersonalFinance.Core.Dtos.Auth;
 using PersonalFinance.Core.Interfaces;
 using PersonalFinance.Infrastructure.Identity;
+using PersonalFinance.Infrastructure.Services;
 
 namespace PersonalFinance.Api.Endpoints;
 
@@ -21,7 +21,12 @@ public static class AuthEndpoints
         {
             var existing = await userManager.FindByEmailAsync(request.Email);
             if (existing is not null)
-                return Results.BadRequest(new { message = "Email is already registered." });
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["Email"] = ["Email is already registered."]
+                });
+            }
 
             var user = new ApplicationUser
             {
@@ -33,17 +38,21 @@ public static class AuthEndpoints
 
             var result = await userManager.CreateAsync(user, request.Password);
             if (!result.Succeeded)
-                return Results.BadRequest(new
-                {
-                    message = string.Join(" ", result.Errors.Select(e => e.Description))
-                });
+            {
+                var errors = result.Errors
+                    .GroupBy(e => e.Code.Contains("Password") ? "Password" : "Email")
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Select(e => e.Description).ToArray());
 
-            // Claim legacy rows (null UserId) + seed defaults if needed
+                return Results.ValidationProblem(errors);
+            }
+
             await financeBootstrap.InitializeForUserAsync(user.Id);
 
             var (token, expires) = tokenService.CreateToken(user);
             return Results.Ok(new AuthResponse(token, user.Email!, user.Id, expires));
-        });
+        }).Validate<RegisterRequest>();
 
         group.MapPost("/login", async (
             LoginRequest request,
@@ -54,20 +63,37 @@ public static class AuthEndpoints
         {
             var user = await userManager.FindByEmailAsync(request.Email);
             if (user is null)
-                return Results.Unauthorized();
+            {
+                return Results.Problem(
+                    title: "Invalid credentials",
+                    detail: "Invalid email or password.",
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
 
             var check = await signInManager.CheckPasswordSignInAsync(
                 user, request.Password, lockoutOnFailure: true);
 
-            if (!check.Succeeded)
-                return Results.Unauthorized();
+            if (check.IsLockedOut)
+            {
+                return Results.Problem(
+                    title: "Account locked",
+                    detail: "Too many failed attempts. Try again later.",
+                    statusCode: StatusCodes.Status423Locked);
+            }
 
-            // Safety net for DBs that still have orphan rows
+            if (!check.Succeeded)
+            {
+                return Results.Problem(
+                    title: "Invalid credentials",
+                    detail: "Invalid email or password.",
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+
             await financeBootstrap.InitializeForUserAsync(user.Id);
 
             var (token, expires) = tokenService.CreateToken(user);
             return Results.Ok(new AuthResponse(token, user.Email!, user.Id, expires));
-        });
+        }).Validate<LoginRequest>();
 
         group.MapGet("/me", async (
             UserManager<ApplicationUser> userManager,

@@ -1,7 +1,6 @@
+using PersonalFinance.Api.Filters;
 using PersonalFinance.Core.Dtos.Accounts;
-using PersonalFinance.Core.Entities;
 using PersonalFinance.Core.Interfaces;
-using PersonalFinance.Core.Mappings;
 
 namespace PersonalFinance.Api.Endpoints;
 
@@ -9,7 +8,9 @@ public static class AccountEndpoints
 {
     public static IEndpointRouteBuilder MapAccountEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/accounts").WithTags("Accounts");
+        var group = app.MapGroup("/api/accounts")
+            .WithTags("Accounts")
+            .RequireAuthorization();
 
         group.MapGet("/", async (IAccountService service) =>
             Results.Ok(await service.GetAllAsync()));
@@ -27,13 +28,13 @@ public static class AccountEndpoints
         {
             var created = await service.CreateAsync(account);
             return Results.Created($"/api/accounts/{created.Id}", created);
-        });
+        }).Validate<CreateAccountRequest>();
 
         group.MapPut("/{id:int}", async (int id, UpdateAccountRequest input, IAccountService service) =>
         {
             var updated = await service.UpdateAsync(id, input);
             return updated ? Results.NoContent() : Results.NotFound();
-        });
+        }).Validate<UpdateAccountRequest>();
 
         group.MapDelete("/{id:int}", async (int id, IAccountService service) =>
         {

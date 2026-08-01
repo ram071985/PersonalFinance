@@ -1,14 +1,15 @@
 using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PersonalFinance.Api.Endpoints;
+using PersonalFinance.Api.Exceptions;
 using PersonalFinance.Core.Interfaces;
 using PersonalFinance.Infrastructure.Data;
 using PersonalFinance.Infrastructure.Identity;
 using PersonalFinance.Infrastructure.Repositories;
 using PersonalFinance.Infrastructure.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -75,6 +76,10 @@ builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IBudgetService, BudgetService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 
+// Global exception → ProblemDetails (built-in, no third-party)
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("BlazorClient", policy =>
@@ -93,29 +98,18 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// // DB bootstrap + seed — only in Development
-// if (app.Environment.IsDevelopment())
-// {
-//     using var scope = app.Services.CreateScope();
-//     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-//
-//     var hasMigrations = (db.Database.GetMigrations()).Any();
-//     if (hasMigrations)
-//         await db.Database.MigrateAsync();
-//     else
-//         await db.Database.EnsureCreatedAsync();
-//
-//     await SeedData.InitializeAsync(db);
-// }
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+app.UseExceptionHandler();
 app.UseCors("BlazorClient");
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapAuthEndpoints();
 app.MapAccountEndpoints();

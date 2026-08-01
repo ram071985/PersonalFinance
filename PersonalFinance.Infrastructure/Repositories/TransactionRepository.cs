@@ -9,13 +9,23 @@ namespace PersonalFinance.Infrastructure.Repositories;
 public class TransactionRepository : ITransactionRepository
 {
     private readonly AppDbContext _db;
+    private readonly ICurrentUserService _currentUser;
 
-    public TransactionRepository(AppDbContext db) => _db = db;
+    public TransactionRepository(AppDbContext db, ICurrentUserService currentUser)
+    {
+        _db = db;
+        _currentUser = currentUser;
+    }
+
+    private string UserId =>
+        _currentUser.UserId
+        ?? throw new UnauthorizedAccessException("Authenticated user is required.");
 
     public async Task<IEnumerable<Transaction>> GetAllAsync() =>
         await _db.Transactions
             .Include(t => t.Account)
             .Include(t => t.Category)
+            .Where(t => t.UserId == UserId)
             .OrderByDescending(t => t.Date)
             .ThenByDescending(t => t.Id)
             .ToListAsync();
@@ -23,7 +33,7 @@ public class TransactionRepository : ITransactionRepository
     public async Task<IEnumerable<Transaction>> GetByAccountIdAsync(int accountId) =>
         await _db.Transactions
             .Include(t => t.Category)
-            .Where(t => t.AccountId == accountId)
+            .Where(t => t.UserId == UserId && t.AccountId == accountId)
             .OrderByDescending(t => t.Date)
             .ToListAsync();
 
@@ -31,6 +41,7 @@ public class TransactionRepository : ITransactionRepository
         await _db.Transactions
             .Include(t => t.Account)
             .Include(t => t.Category)
+            .Where(t => t.UserId == UserId)
             .OrderByDescending(t => t.Date)
             .ThenByDescending(t => t.Id)
             .Take(count)
@@ -40,7 +51,7 @@ public class TransactionRepository : ITransactionRepository
         await _db.Transactions
             .Include(t => t.Account)
             .Include(t => t.Category)
-            .Where(t => t.Date >= from && t.Date <= to)
+            .Where(t => t.UserId == UserId && t.Date >= from && t.Date <= to)
             .OrderByDescending(t => t.Date)
             .ToListAsync();
 
@@ -49,10 +60,19 @@ public class TransactionRepository : ITransactionRepository
             .Include(t => t.Account)
             .Include(t => t.Category)
             .Include(t => t.TransferToAccount)
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == UserId);
 
     public async Task<Transaction> AddAsync(Transaction transaction)
     {
+        transaction.UserId = UserId;
+        transaction.CreatedAt = DateTime.UtcNow;
+
+        await EnsureAccountOwnershipAsync(transaction.AccountId);
+        if (transaction.TransferToAccountId.HasValue)
+            await EnsureAccountOwnershipAsync(transaction.TransferToAccountId.Value);
+        if (transaction.CategoryId.HasValue)
+            await EnsureCategoryOwnershipAsync(transaction.CategoryId.Value);
+
         await ApplyBalanceAsync(transaction, apply: true);
         _db.Transactions.Add(transaction);
         await _db.SaveChangesAsync();
@@ -61,9 +81,16 @@ public class TransactionRepository : ITransactionRepository
 
     public async Task UpdateAsync(Transaction input)
     {
-        var existing = await _db.Transactions.FindAsync(input.Id);
+        var existing = await GetByIdAsync(input.Id);
         if (existing is null) return;
 
+        await EnsureAccountOwnershipAsync(input.AccountId);
+        if (input.TransferToAccountId.HasValue)
+            await EnsureAccountOwnershipAsync(input.TransferToAccountId.Value);
+        if (input.CategoryId.HasValue)
+            await EnsureCategoryOwnershipAsync(input.CategoryId.Value);
+
+        // Reverse old balance effect
         await ApplyBalanceAsync(existing, apply: false);
 
         existing.AccountId = input.AccountId;
@@ -75,13 +102,14 @@ public class TransactionRepository : ITransactionRepository
         existing.Notes = input.Notes;
         existing.Date = input.Date;
 
+        // Apply new balance effect
         await ApplyBalanceAsync(existing, apply: true);
         await _db.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(int id)
     {
-        var transaction = await _db.Transactions.FindAsync(id);
+        var transaction = await GetByIdAsync(id);
         if (transaction is null) return;
 
         await ApplyBalanceAsync(transaction, apply: false);
@@ -91,22 +119,44 @@ public class TransactionRepository : ITransactionRepository
 
     public async Task<decimal> GetMonthlyIncomeAsync(int year, int month) =>
         await _db.Transactions
-            .Where(t => t.Type == TransactionType.Income
+            .Where(t => t.UserId == UserId
+                     && t.Type == TransactionType.Income
                      && t.Date.Year == year
                      && t.Date.Month == month)
             .SumAsync(t => t.Amount);
 
     public async Task<decimal> GetMonthlyExpensesAsync(int year, int month) =>
         await _db.Transactions
-            .Where(t => t.Type == TransactionType.Expense
+            .Where(t => t.UserId == UserId
+                     && t.Type == TransactionType.Expense
                      && t.Date.Year == year
                      && t.Date.Month == month)
             .SumAsync(t => t.Amount);
 
+    private async Task EnsureAccountOwnershipAsync(int accountId)
+    {
+        var owns = await _db.Accounts
+            .AnyAsync(a => a.Id == accountId && a.UserId == UserId);
+
+        if (!owns)
+            throw new UnauthorizedAccessException("Account does not belong to the current user.");
+    }
+
+    private async Task EnsureCategoryOwnershipAsync(int categoryId)
+    {
+        var owns = await _db.Categories
+            .AnyAsync(c => c.Id == categoryId && c.UserId == UserId && c.IsActive);
+
+        if (!owns)
+            throw new UnauthorizedAccessException("Category does not belong to the current user.");
+    }
+
     private async Task ApplyBalanceAsync(Transaction tx, bool apply)
     {
         var sign = apply ? 1m : -1m;
-        var account = await _db.Accounts.FindAsync(tx.AccountId);
+        var account = await _db.Accounts
+            .FirstOrDefaultAsync(a => a.Id == tx.AccountId && a.UserId == UserId);
+
         if (account is null) return;
 
         if (tx.Type == TransactionType.Income)
@@ -116,7 +166,8 @@ public class TransactionRepository : ITransactionRepository
         else if (tx.Type == TransactionType.Transfer && tx.TransferToAccountId.HasValue)
         {
             account.Balance -= tx.Amount * sign;
-            var toAccount = await _db.Accounts.FindAsync(tx.TransferToAccountId.Value);
+            var toAccount = await _db.Accounts
+                .FirstOrDefaultAsync(a => a.Id == tx.TransferToAccountId.Value && a.UserId == UserId);
             if (toAccount is not null)
                 toAccount.Balance += tx.Amount * sign;
         }
