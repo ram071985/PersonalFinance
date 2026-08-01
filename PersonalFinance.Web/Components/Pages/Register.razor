@@ -1,9 +1,10 @@
 @page "/register"
-@attribute [AllowAnonymous]
-@using Microsoft.AspNetCore.Authorization
+@using PersonalFinance.Services
 @using PersonalFinance.Web.Models
+@attribute [AllowAnonymous]
 @layout AuthLayout
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@inject AuthService Auth
 @inject NavigationManager Navigation
 
 <PageTitle>Register – Personal Finance</PageTitle>
@@ -19,7 +20,7 @@
 
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
-        <div class="auth-error">@_errorMessage</div>
+        <div class="auth-error" style="white-space:pre-wrap;">@_errorMessage</div>
     }
 
     <EditForm Model="_model" OnValidSubmit="HandleRegisterAsync">
@@ -44,14 +45,7 @@
         </div>
 
         <button type="submit" class="btn btn-primary btn-block" disabled="@_isSubmitting">
-            @if (_isSubmitting)
-            {
-                <span>Creating account…</span>
-            }
-            else
-            {
-                <span>Create account</span>
-            }
+            @(_isSubmitting ? "Creating account…" : "Create account")
         </button>
     </EditForm>
 
@@ -69,12 +63,17 @@
     {
         _errorMessage = null;
         _isSubmitting = true;
-
         try
         {
-            // TODO: call Auth API once Identity is wired
-            await Task.Delay(400);
-            _errorMessage = "Auth service not yet connected. Identity setup is next.";
+            var (success, error) = await Auth.RegisterAsync(_model.Email.Trim(), _model.Password);
+            if (!success)
+            {
+                _errorMessage = error ?? "Registration failed.";
+                return;
+            }
+
+            await Task.Yield();
+            Navigation.NavigateTo("/", replace: true);
         }
         catch (Exception ex)
         {

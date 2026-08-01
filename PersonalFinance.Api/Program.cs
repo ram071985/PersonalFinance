@@ -60,6 +60,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<UserFinanceBootstrap>();
 
 // Repositories
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
@@ -116,6 +117,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("BlazorClient");
 app.UseHttpsRedirection();
 
+app.MapAuthEndpoints();
 app.MapAccountEndpoints();
 app.MapCategoryEndpoints();
 app.MapTransactionEndpoints();

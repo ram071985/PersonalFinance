@@ -13,19 +13,24 @@ public class ServerAuthenticationStateProvider : AuthenticationStateProvider
     public override Task<AuthenticationState> GetAuthenticationStateAsync()
     {
         if (!_tokenStore.IsAuthenticated)
-            return Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
-
-        var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, _tokenStore.UserId ?? string.Empty),
-            new(ClaimTypes.Email, _tokenStore.Email ?? string.Empty),
-            new(ClaimTypes.Name, _tokenStore.Email ?? string.Empty)
+            var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
+            return Task.FromResult(new AuthenticationState(anonymous));
+        }
+
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, _tokenStore.UserId ?? string.Empty),
+            new Claim(ClaimTypes.Email, _tokenStore.Email ?? string.Empty),
+            new Claim(ClaimTypes.Name, _tokenStore.Email ?? string.Empty)
         };
 
-        var identity = new ClaimsIdentity(claims, authenticationType: "jwt");
-        return Task.FromResult(new AuthenticationState(new ClaimsPrincipal(identity)));
+        // authenticationType must be non-empty or IsAuthenticated stays false
+        var identity = new ClaimsIdentity(claims, authenticationType: "Bearer");
+        var user = new ClaimsPrincipal(identity);
+        return Task.FromResult(new AuthenticationState(user));
     }
 
-    public void NotifyAuthenticationStateChanged() =>
+    public void NotifyAuthChanged() =>
         NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
 }

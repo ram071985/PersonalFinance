@@ -11,41 +11,33 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddInteractiveWebAssemblyComponents();
 
-// Required so AuthorizeRouteView / AuthorizeView can resolve IAuthenticationService.
-// Real auth state still comes from ServerAuthenticationStateProvider + JWT in AuthTokenStore.
+// Needed so AuthorizeRouteView can resolve IAuthenticationService.
+// Login state still comes from ServerAuthenticationStateProvider + JWT (circuit-scoped).
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
         options.LoginPath = "/login";
-        options.LogoutPath = "/login";
-        options.Events.OnRedirectToLogin = context =>
-        {
-            // Blazor handles redirect via AuthorizeRouteView — avoid API-style redirects
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return Task.CompletedTask;
-        };
     });
 
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 
-// Circuit-scoped auth (Interactive Server — token never leaves the server)
+// Circuit-scoped
 builder.Services.AddScoped<AuthTokenStore>();
 builder.Services.AddScoped<ServerAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<ServerAuthenticationStateProvider>());
-
+builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<AuthDelegatingHandler>();
 
-builder.Services.AddHttpClient<AuthService>(client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7000/");
-});
+var apiBase = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7000/";
 
-builder.Services.AddHttpClient<FinanceApiClient>(client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7000/");
-}).AddHttpMessageHandler<AuthDelegatingHandler>();
+// Login/register — no bearer
+builder.Services.AddHttpClient("AuthApi", c => c.BaseAddress = new Uri(apiBase));
+
+// Finance — with JWT
+builder.Services.AddHttpClient<FinanceApiClient>(c => c.BaseAddress = new Uri(apiBase))
+    .AddHttpMessageHandler<AuthDelegatingHandler>();
 
 var app = builder.Build();
 

@@ -1,10 +1,13 @@
 @page "/login"
-@attribute [AllowAnonymous]
-@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @using PersonalFinance.Models
+@using PersonalFinance.Services
+@attribute [AllowAnonymous]
 @layout AuthLayout
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@inject AuthService Auth
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Login – Personal Finance</PageTitle>
 
@@ -19,7 +22,7 @@
 
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
-        <div class="auth-error">@_errorMessage</div>
+        <div class="auth-error" style="white-space:pre-wrap;">@_errorMessage</div>
     }
 
     <EditForm Model="_model" OnValidSubmit="HandleLoginAsync">
@@ -37,20 +40,8 @@
             <ValidationMessage For="() => _model.Password" class="text-danger" style="font-size:0.8rem;margin-top:0.25rem;" />
         </div>
 
-        <div class="form-group" style="display:flex;align-items:center;gap:0.5rem;">
-            <InputCheckbox id="remember" @bind-Value="_model.RememberMe" />
-            <label for="remember" class="form-label" style="margin:0;cursor:pointer;">Remember me</label>
-        </div>
-
         <button type="submit" class="btn btn-primary btn-block" disabled="@_isSubmitting">
-            @if (_isSubmitting)
-            {
-                <span>Signing in…</span>
-            }
-            else
-            {
-                <span>Sign in</span>
-            }
+            @(_isSubmitting ? "Signing in…" : "Sign in")
         </button>
     </EditForm>
 
@@ -68,13 +59,22 @@
     {
         _errorMessage = null;
         _isSubmitting = true;
-
         try
         {
-            // TODO: call Auth API once Identity is wired
-            // For now this is the UI shell.
-            await Task.Delay(400);
-            _errorMessage = "Auth service not yet connected. Identity setup is next.";
+            var (success, error) = await Auth.LoginAsync(_model.Email.Trim(), _model.Password);
+            if (!success)
+            {
+                _errorMessage = error ?? "Login failed.";
+                return;
+            }
+
+            var state = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (state.User.Identity?.IsAuthenticated != true)
+            {
+                _errorMessage = "Token stored but auth state is still anonymous...";
+                return;
+            }
+            Navigation.NavigateTo("/", forceLoad: false, replace: true);
         }
         catch (Exception ex)
         {

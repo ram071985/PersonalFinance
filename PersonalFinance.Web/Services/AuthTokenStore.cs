@@ -1,7 +1,7 @@
 namespace PersonalFinance.Services;
 
 /// <summary>
-/// Circuit-scoped token store. Token lives only on the server for Interactive Server.
+/// Circuit-scoped store. JWT lives only on the server (Interactive Server).
 /// </summary>
 public class AuthTokenStore
 {
@@ -10,10 +10,7 @@ public class AuthTokenStore
     public string? UserId { get; private set; }
     public DateTime? ExpiresAt { get; private set; }
 
-    public bool IsAuthenticated =>
-        !string.IsNullOrEmpty(AccessToken)
-        && ExpiresAt is not null
-        && ExpiresAt > DateTime.UtcNow;
+    public bool IsAuthenticated => !string.IsNullOrWhiteSpace(AccessToken);
 
     public void Set(string token, string email, string userId, DateTime expiresAt)
     {

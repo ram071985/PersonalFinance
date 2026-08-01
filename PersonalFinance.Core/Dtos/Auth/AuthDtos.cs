@@ -1,22 +1,23 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace PersonalFinance.Core.Dtos.Auth;
 
 public record RegisterRequest(
-    [Required, EmailAddress] string Email,
-    [Required, MinLength(8)] string Password);
+    [property: Required, EmailAddress] string Email,
+    [property: Required, MinLength(8)] string Password);
 
 public record LoginRequest(
-    [Required, EmailAddress] string Email,
-    [Required] string Password);
+    [property: Required, EmailAddress] string Email,
+    [property: Required] string Password);
 
 public record AuthResponse(
-    string Token,
-    string Email,
-    string UserId,
-    DateTime ExpiresAt);
+    [property: JsonPropertyName("token")] string Token,
+    [property: JsonPropertyName("email")] string Email,
+    [property: JsonPropertyName("userId")] string UserId,
+    [property: JsonPropertyName("expiresAt")] DateTime ExpiresAt);
 
 public record UserInfoResponse(
-    string UserId,
-    string Email,
-    string? DisplayName);
+    [property: JsonPropertyName("userId")] string UserId,
+    [property: JsonPropertyName("email")] string Email,
+    [property: JsonPropertyName("displayName")] string? DisplayName);

@@ -4,12 +4,17 @@
 @using PersonalFinance.Core.Dtos.Dashboard
 @using PersonalFinance.Core.Enums
 @using PersonalFinance.Web.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @inject FinanceApiClient Api
+@inject AuthenticationStateProvider AuthStateProvider
 @rendermode InteractiveServer
 
 <PageTitle>Dashboard</PageTitle>
 
-<h1 class="mb-6 text-2xl font-bold text-foreground">Dashboard</h1>
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-foreground">Hello, @_displayName</h1>
+    <p class="mt-1 text-sm text-foreground-muted">Here's your financial overview.</p>
+</div>
 
 @if (_isLoading)
 {
@@ -90,9 +95,20 @@ else
 @code {
     private DashboardDto? _dashboard;
     private bool _isLoading = true;
+    private string _displayName = "there";
 
     protected override async Task OnInitializedAsync()
     {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var name = state.User.Identity?.Name;
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            var local = name.Contains('@') ? name.Split('@')[0] : name;
+            _displayName = local.Length > 0
+                ? char.ToUpper(local[0]) + local[1..]
+                : "there";
+        }
+
         try { _dashboard = await Api.GetDashboardAsync(); }
         catch { _dashboard = null; }
         finally { _isLoading = false; }
