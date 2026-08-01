@@ -8,6 +8,7 @@ public class Account
     public string Name { get; set; } = string.Empty;
     public AccountType Type { get; set; }
     public decimal Balance { get; set; }
+    public string UserId { get; set; } = string.Empty;
     public string? Institution { get; set; }
     public string? Notes { get; set; }
     public bool IsActive { get; set; } = true;

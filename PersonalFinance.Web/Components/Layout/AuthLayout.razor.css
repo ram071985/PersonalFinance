@@ -1,0 +1,132 @@
+/* Auth layout shell + shared auth form styles (mobile-first)
+   ::deep reaches content rendered via @Body (Login / Register) */
+
+.auth-page {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 1.25rem 1rem;
+    padding-top: max(1.25rem, env(safe-area-inset-top));
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+    background: var(--bg);
+}
+
+::deep .auth-card {
+    width: 100%;
+    max-width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem 1.25rem;
+    margin-top: 1.5rem;
+}
+
+::deep .auth-card h1 {
+    font-size: 1.25rem;
+    margin-bottom: 0.25rem;
+}
+
+::deep .auth-card .subtitle {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+    line-height: 1.4;
+}
+
+::deep .auth-card .form-group {
+    margin-bottom: 1rem;
+}
+
+::deep .auth-card .form-group label {
+    display: block;
+    margin-bottom: 0.35rem;
+}
+
+/* Prevent iOS zoom on focus – inputs must be ≥ 16px */
+::deep .auth-card .form-control,
+::deep .auth-card .form-select {
+    font-size: 16px !important;
+    min-height: 2.75rem;
+    width: 100%;
+}
+
+::deep .auth-card .btn-block {
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.7rem 1rem;
+    margin-top: 0.75rem;
+    font-size: 1rem;
+}
+
+::deep .auth-footer {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+::deep .auth-footer a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.25rem;
+}
+
+::deep .auth-footer a:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
+::deep .auth-error {
+    background: rgba(225, 29, 72, 0.12);
+    border: 1px solid rgba(225, 29, 72, 0.35);
+    color: #fb7185;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    margin-bottom: 1.25rem;
+    line-height: 1.4;
+}
+
+::deep .auth-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+/* Tablet and up */
+@media (min-width: 480px) {
+    .auth-page {
+        align-items: center;
+        padding: 2rem 1.5rem;
+    }
+
+    ::deep .auth-card {
+        max-width: 400px;
+        padding: 2rem 1.75rem;
+        margin-top: 0;
+    }
+
+    ::deep .auth-card h1 {
+        font-size: 1.35rem;
+    }
+
+    ::deep .auth-brand {
+        font-size: 1.15rem;
+        margin-bottom: 1.75rem;
+    }
+}
+
+@media (min-width: 640px) {
+    ::deep .auth-card {
+        max-width: 420px;
+        padding: 2.25rem 2rem;
+    }
+}

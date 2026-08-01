@@ -1,7 +1,5 @@
 @page "/accounts"
-@using PersonalFinance.Core.Dtos
-@using PersonalFinance.Core.Enums
-@using PersonalFinance.Web.Models
+@attribute [Authorize]
 @using PersonalFinance.Web.Services
 @inject FinanceApiClient Api
 @rendermode InteractiveServer

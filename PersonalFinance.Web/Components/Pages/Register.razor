@@ -1,0 +1,88 @@
+@page "/register"
+@attribute [AllowAnonymous]
+@using Microsoft.AspNetCore.Authorization
+@using PersonalFinance.Web.Models
+@layout AuthLayout
+@rendermode InteractiveServer
+@inject NavigationManager Navigation
+
+<PageTitle>Register – Personal Finance</PageTitle>
+
+<div class="auth-card">
+    <div class="auth-brand">
+        <span>💰</span>
+        <span>Personal Finance</span>
+    </div>
+
+    <h1>Create account</h1>
+    <p class="subtitle">Start tracking your finances in one place.</p>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="auth-error">@_errorMessage</div>
+    }
+
+    <EditForm Model="_model" OnValidSubmit="HandleRegisterAsync">
+        <DataAnnotationsValidator />
+
+        <div class="form-group">
+            <label class="form-label" for="email">Email</label>
+            <InputText id="email" class="form-control" @bind-Value="_model.Email" autocomplete="username" />
+            <ValidationMessage For="() => _model.Email" class="text-danger" style="font-size:0.8rem;margin-top:0.25rem;" />
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="password">Password</label>
+            <InputText id="password" type="password" class="form-control" @bind-Value="_model.Password" autocomplete="new-password" />
+            <ValidationMessage For="() => _model.Password" class="text-danger" style="font-size:0.8rem;margin-top:0.25rem;" />
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="confirm">Confirm password</label>
+            <InputText id="confirm" type="password" class="form-control" @bind-Value="_model.ConfirmPassword" autocomplete="new-password" />
+            <ValidationMessage For="() => _model.ConfirmPassword" class="text-danger" style="font-size:0.8rem;margin-top:0.25rem;" />
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" disabled="@_isSubmitting">
+            @if (_isSubmitting)
+            {
+                <span>Creating account…</span>
+            }
+            else
+            {
+                <span>Create account</span>
+            }
+        </button>
+    </EditForm>
+
+    <div class="auth-footer">
+        Already have an account? <a href="/login">Sign in</a>
+    </div>
+</div>
+
+@code {
+    private readonly RegisterFormModel _model = new();
+    private string? _errorMessage;
+    private bool _isSubmitting;
+
+    private async Task HandleRegisterAsync()
+    {
+        _errorMessage = null;
+        _isSubmitting = true;
+
+        try
+        {
+            // TODO: call Auth API once Identity is wired
+            await Task.Delay(400);
+            _errorMessage = "Auth service not yet connected. Identity setup is next.";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

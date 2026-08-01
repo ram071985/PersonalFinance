@@ -1,9 +1,12 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PersonalFinance.Core.Entities;
+using PersonalFinance.Infrastructure.Identity;
 
 namespace PersonalFinance.Infrastructure.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext : IdentityDbContext<ApplicationUser>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -19,6 +22,20 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
         
         modelBuilder.HasDefaultSchema("pfa");
+        
+        modelBuilder.Entity<ApplicationUser>(e =>
+        {
+            e.ToTable("AspNetUsers", "pfa");
+            e.Property(u => u.DisplayName).HasMaxLength(100);
+            e.Property(u => u.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+        });
+
+        modelBuilder.Entity<IdentityRole>(e => e.ToTable("AspNetRoles", "pfa"));
+        modelBuilder.Entity<IdentityUserRole<string>>(e => e.ToTable("AspNetUserRoles", "pfa"));
+        modelBuilder.Entity<IdentityUserClaim<string>>(e => e.ToTable("AspNetUserClaims", "pfa"));
+        modelBuilder.Entity<IdentityUserLogin<string>>(e => e.ToTable("AspNetUserLogins", "pfa"));
+        modelBuilder.Entity<IdentityUserToken<string>>(e => e.ToTable("AspNetUserTokens", "pfa"));
+        modelBuilder.Entity<IdentityRoleClaim<string>>(e => e.ToTable("AspNetRoleClaims", "pfa"));
         
         modelBuilder.Entity<Account>(e =>
         {
