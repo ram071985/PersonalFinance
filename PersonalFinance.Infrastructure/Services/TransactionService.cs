@@ -1,5 +1,6 @@
 using PersonalFinance.Core.Common;
 using PersonalFinance.Core.Dtos.Transactions;
+using PersonalFinance.Core.Entities;
 using PersonalFinance.Core.Interfaces;
 using PersonalFinance.Core.Mappings;
 
@@ -34,15 +35,16 @@ public class TransactionService : ITransactionService
     public async Task<TransactionDto> CreateAsync(CreateTransactionRequest request)
     {
         var entity = request.ToEntity();
+        Transaction created = null!;
 
         await _uow.ExecuteInTransactionAsync(async _ =>
         {
-            await _repo.AddAsync(entity);
+            created = await _repo.AddAsync(entity);
         });
 
-        // Re-fetch with includes for display names
-        var full = await _repo.GetByIdAsync(entity.Id);
-        return full!.ToDto();
+        // Prefer re-fetch with includes (AccountName / CategoryName); fall back to created.
+        var full = await _repo.GetByIdAsync(created.Id);
+        return (full ?? created).ToDto();
     }
 
     public async Task<Result> UpdateAsync(int id, UpdateTransactionRequest request)

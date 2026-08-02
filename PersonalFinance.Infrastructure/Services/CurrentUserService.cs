@@ -1,6 +1,7 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using PersonalFinance.Core.Interfaces;
 using Microsoft.AspNetCore.Http;
+using PersonalFinance.Core.Interfaces;
 
 namespace PersonalFinance.Infrastructure.Services;
 
@@ -11,12 +12,19 @@ public class CurrentUserService : ICurrentUserService
     public CurrentUserService(IHttpContextAccessor httpContextAccessor) =>
         _httpContextAccessor = httpContextAccessor;
 
+    private ClaimsPrincipal? User =>
+        _httpContextAccessor.HttpContext?.User;
+
     public string? UserId =>
-        _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        User?.FindFirstValue(ClaimTypes.NameIdentifier)
+        ?? User?.FindFirstValue(JwtRegisteredClaimNames.Sub)
+        ?? User?.FindFirstValue("sub");
 
     public string? Email =>
-        _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.Email);
+        User?.FindFirstValue(ClaimTypes.Email)
+        ?? User?.FindFirstValue(JwtRegisteredClaimNames.Email)
+        ?? User?.FindFirstValue("email");
 
     public bool IsAuthenticated =>
-        _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated ?? false;
+        User?.Identity?.IsAuthenticated ?? false;
 }
