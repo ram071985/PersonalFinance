@@ -75,7 +75,7 @@ public class TransactionRepository : ITransactionRepository
 
         await ApplyBalanceAsync(transaction, apply: true);
         _db.Transactions.Add(transaction);
-        await _db.SaveChangesAsync();
+        // SaveChanges is owned by IUnitOfWork (service layer).
         return transaction;
     }
 
@@ -104,7 +104,7 @@ public class TransactionRepository : ITransactionRepository
 
         // Apply new balance effect
         await ApplyBalanceAsync(existing, apply: true);
-        await _db.SaveChangesAsync();
+        // SaveChanges is owned by IUnitOfWork (service layer).
     }
 
     public async Task<bool> DeleteAsync(int id)
@@ -114,7 +114,7 @@ public class TransactionRepository : ITransactionRepository
 
         await ApplyBalanceAsync(transaction, apply: false);
         _db.Transactions.Remove(transaction);
-        await _db.SaveChangesAsync();
+        // SaveChanges is owned by IUnitOfWork (service layer).
         return true;
     }
 

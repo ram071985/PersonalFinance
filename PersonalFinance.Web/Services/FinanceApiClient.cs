@@ -1,101 +1,158 @@
-using PersonalFinance.Core.Dtos;
-using PersonalFinance.Core.Enums;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using PersonalFinance.Core.Dtos.Accounts;
 using PersonalFinance.Core.Dtos.Budgets;
 using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Dtos.Dashboard;
 using PersonalFinance.Core.Dtos.Transactions;
+using PersonalFinance.Core.Enums;
+using PersonalFinance.Services;
 
 namespace PersonalFinance.Web.Services;
 
+/// <summary>
+/// Typed API client. Attaches JWT from the circuit-scoped AuthTokenStore on every request.
+/// Blazor Server: DelegatingHandler cannot see the circuit's AuthTokenStore (different DI scope).
+/// </summary>
 public class FinanceApiClient
 {
     private readonly HttpClient _http;
+    private readonly AuthTokenStore _tokens;
 
-    public FinanceApiClient(HttpClient http) => _http = http;
+    public FinanceApiClient(HttpClient http, AuthTokenStore tokens)
+    {
+        _http = http;
+        _tokens = tokens;
+    }
+
+    private void ApplyBearer(HttpRequestMessage request)
+    {
+        if (_tokens.IsAuthenticated && !string.IsNullOrWhiteSpace(_tokens.AccessToken))
+        {
+            request.Headers.Authorization =
+                new AuthenticationHeaderValue("Bearer", _tokens.AccessToken);
+        }
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
+    {
+        await _tokens.EnsureRestoredAsync();
+        ApplyBearer(request);
+        return await _http.SendAsync(request);
+    }
+
+    private async Task EnsureSuccess(HttpResponseMessage response)
+    {
+        if (response.IsSuccessStatusCode) return;
+
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            throw new HttpRequestException("Unauthorized (401). Log in again — JWT missing or expired.");
+
+        var body = await response.Content.ReadAsStringAsync();
+        throw new HttpRequestException($"API {(int)response.StatusCode}: {body}");
+    }
+
+    private async Task<T?> GetJsonAsync<T>(string url)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        var response = await SendAsync(request);
+        await EnsureSuccess(response);
+        return await response.Content.ReadFromJsonAsync<T>();
+    }
+
+    private async Task<T> PostJsonAsync<T>(string url, object body)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = JsonContent.Create(body)
+        };
+        var response = await SendAsync(request);
+        await EnsureSuccess(response);
+        return (await response.Content.ReadFromJsonAsync<T>())!;
+    }
+
+    private async Task PutJsonAsync(string url, object body)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, url)
+        {
+            Content = JsonContent.Create(body)
+        };
+        var response = await SendAsync(request);
+        await EnsureSuccess(response);
+    }
+
+    private async Task DeleteAsync(string url)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Delete, url);
+        var response = await SendAsync(request);
+        await EnsureSuccess(response);
+    }
 
     // ── Accounts ──────────────────────────────────────────
     public async Task<List<AccountDto>> GetAccountsAsync() =>
-        await _http.GetFromJsonAsync<List<AccountDto>>("api/accounts") ?? new();
+        await GetJsonAsync<List<AccountDto>>("api/accounts") ?? new();
 
-    public async Task<AccountDto?> GetAccountAsync(int id) =>
-        await _http.GetFromJsonAsync<AccountDto>($"api/accounts/{id}");
+    public Task<AccountDto?> GetAccountAsync(int id) =>
+        GetJsonAsync<AccountDto>($"api/accounts/{id}");
 
-    public async Task<AccountDto> CreateAccountAsync(CreateAccountRequest request)
-    {
-        var response = await _http.PostAsJsonAsync("api/accounts", request);
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<AccountDto>())!;
-    }
+    public Task<AccountDto> CreateAccountAsync(CreateAccountRequest request) =>
+        PostJsonAsync<AccountDto>("api/accounts", request);
 
-    public async Task UpdateAccountAsync(int id, UpdateAccountRequest request) =>
-        (await _http.PutAsJsonAsync($"api/accounts/{id}", request)).EnsureSuccessStatusCode();
+    public Task UpdateAccountAsync(int id, UpdateAccountRequest request) =>
+        PutJsonAsync($"api/accounts/{id}", request);
 
-    public async Task DeleteAccountAsync(int id) =>
-        (await _http.DeleteAsync($"api/accounts/{id}")).EnsureSuccessStatusCode();
+    public Task DeleteAccountAsync(int id) =>
+        DeleteAsync($"api/accounts/{id}");
 
     // ── Categories ────────────────────────────────────────
     public async Task<List<CategoryDto>> GetCategoriesAsync() =>
-        await _http.GetFromJsonAsync<List<CategoryDto>>("api/categories") ?? new();
+        await GetJsonAsync<List<CategoryDto>>("api/categories") ?? new();
 
     public async Task<List<CategoryDto>> GetCategoriesByTypeAsync(CategoryType type) =>
-        await _http.GetFromJsonAsync<List<CategoryDto>>($"api/categories/type/{type}") ?? new();
+        await GetJsonAsync<List<CategoryDto>>($"api/categories/type/{type}") ?? new();
 
-    public async Task<CategoryDto> CreateCategoryAsync(CreateCategoryRequest request)
-    {
-        var response = await _http.PostAsJsonAsync("api/categories", request);
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<CategoryDto>())!;
-    }
+    public Task<CategoryDto> CreateCategoryAsync(CreateCategoryRequest request) =>
+        PostJsonAsync<CategoryDto>("api/categories", request);
 
-    public async Task UpdateCategoryAsync(int id, UpdateCategoryRequest request) =>
-        (await _http.PutAsJsonAsync($"api/categories/{id}", request)).EnsureSuccessStatusCode();
+    public Task UpdateCategoryAsync(int id, UpdateCategoryRequest request) =>
+        PutJsonAsync($"api/categories/{id}", request);
 
-    public async Task DeleteCategoryAsync(int id) =>
-        (await _http.DeleteAsync($"api/categories/{id}")).EnsureSuccessStatusCode();
+    public Task DeleteCategoryAsync(int id) =>
+        DeleteAsync($"api/categories/{id}");
 
     // ── Transactions ──────────────────────────────────────
     public async Task<List<TransactionDto>> GetTransactionsAsync() =>
-        await _http.GetFromJsonAsync<List<TransactionDto>>("api/transactions") ?? new();
+        await GetJsonAsync<List<TransactionDto>>("api/transactions") ?? new();
 
     public async Task<List<TransactionDto>> GetRecentTransactionsAsync(int count = 10) =>
-        await _http.GetFromJsonAsync<List<TransactionDto>>($"api/transactions/recent?count={count}") ?? new();
+        await GetJsonAsync<List<TransactionDto>>($"api/transactions/recent?count={count}") ?? new();
 
-    public async Task<TransactionDto> CreateTransactionAsync(CreateTransactionRequest request)
-    {
-        var response = await _http.PostAsJsonAsync("api/transactions", request);
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<TransactionDto>())!;
-    }
+    public Task<TransactionDto> CreateTransactionAsync(CreateTransactionRequest request) =>
+        PostJsonAsync<TransactionDto>("api/transactions", request);
 
-    public async Task UpdateTransactionAsync(int id, UpdateTransactionRequest request) =>
-        (await _http.PutAsJsonAsync($"api/transactions/{id}", request)).EnsureSuccessStatusCode();
+    public Task UpdateTransactionAsync(int id, UpdateTransactionRequest request) =>
+        PutJsonAsync($"api/transactions/{id}", request);
 
-    public async Task DeleteTransactionAsync(int id) =>
-        (await _http.DeleteAsync($"api/transactions/{id}")).EnsureSuccessStatusCode();
+    public Task DeleteTransactionAsync(int id) =>
+        DeleteAsync($"api/transactions/{id}");
 
     // ── Budgets ───────────────────────────────────────────
     public async Task<List<BudgetDto>> GetBudgetsAsync() =>
-        await _http.GetFromJsonAsync<List<BudgetDto>>("api/budgets") ?? new();
+        await GetJsonAsync<List<BudgetDto>>("api/budgets") ?? new();
 
     public async Task<List<BudgetDto>> GetBudgetsByMonthAsync(int year, int month) =>
-        await _http.GetFromJsonAsync<List<BudgetDto>>($"api/budgets/month/{year}/{month}") ?? new();
+        await GetJsonAsync<List<BudgetDto>>($"api/budgets/month/{year}/{month}") ?? new();
 
-    public async Task<BudgetDto> CreateBudgetAsync(CreateBudgetRequest request)
-    {
-        var response = await _http.PostAsJsonAsync("api/budgets", request);
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<BudgetDto>())!;
-    }
+    public Task<BudgetDto> CreateBudgetAsync(CreateBudgetRequest request) =>
+        PostJsonAsync<BudgetDto>("api/budgets", request);
 
-    public async Task UpdateBudgetAsync(int id, UpdateBudgetRequest request) =>
-        (await _http.PutAsJsonAsync($"api/budgets/{id}", request)).EnsureSuccessStatusCode();
+    public Task UpdateBudgetAsync(int id, UpdateBudgetRequest request) =>
+        PutJsonAsync($"api/budgets/{id}", request);
 
-    public async Task DeleteBudgetAsync(int id) =>
-        (await _http.DeleteAsync($"api/budgets/{id}")).EnsureSuccessStatusCode();
+    public Task DeleteBudgetAsync(int id) =>
+        DeleteAsync($"api/budgets/{id}");
 
     // ── Dashboard ─────────────────────────────────────────
-    public async Task<DashboardDto?> GetDashboardAsync() =>
-        await _http.GetFromJsonAsync<DashboardDto>("api/dashboard");
+    public Task<DashboardDto?> GetDashboardAsync() =>
+        GetJsonAsync<DashboardDto>("api/dashboard");
 }

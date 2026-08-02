@@ -12,13 +12,21 @@ namespace PersonalFinance.Tests.Services;
 public class TransactionServiceTests
 {
     private Mock<ITransactionRepository> _repo = null!;
+    private Mock<IUnitOfWork> _uow = null!;
     private TransactionService _sut = null!;
 
     [SetUp]
     public void SetUp()
     {
         _repo = new Mock<ITransactionRepository>();
-        _sut = new TransactionService(_repo.Object);
+        _uow = new Mock<IUnitOfWork>();
+        // Execute the transactional callback immediately (no real DB).
+        _uow.Setup(u => u.ExecuteInTransactionAsync(
+                It.IsAny<Func<CancellationToken, Task>>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<Func<CancellationToken, Task>, CancellationToken>(
+                async (op, ct) => await op(ct));
+        _sut = new TransactionService(_repo.Object, _uow.Object);
     }
 
     private static Transaction CreateSampleTransaction(int id = 1) => new()

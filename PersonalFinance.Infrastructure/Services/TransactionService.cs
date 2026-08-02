@@ -8,8 +8,13 @@ namespace PersonalFinance.Infrastructure.Services;
 public class TransactionService : ITransactionService
 {
     private readonly ITransactionRepository _repo;
+    private readonly IUnitOfWork _uow;
 
-    public TransactionService(ITransactionRepository repo) => _repo = repo;
+    public TransactionService(ITransactionRepository repo, IUnitOfWork uow)
+    {
+        _repo = repo;
+        _uow = uow;
+    }
 
     public async Task<IEnumerable<TransactionDto>> GetAllAsync() =>
         (await _repo.GetAllAsync()).ToDtoList();
@@ -28,9 +33,15 @@ public class TransactionService : ITransactionService
 
     public async Task<TransactionDto> CreateAsync(CreateTransactionRequest request)
     {
-        var created = await _repo.AddAsync(request.ToEntity());
-        // re-fetch with includes for AccountName / CategoryName / TransferToAccountName
-        var full = await _repo.GetByIdAsync(created.Id);
+        var entity = request.ToEntity();
+
+        await _uow.ExecuteInTransactionAsync(async _ =>
+        {
+            await _repo.AddAsync(entity);
+        });
+
+        // Re-fetch with includes for display names
+        var full = await _repo.GetByIdAsync(entity.Id);
         return full!.ToDto();
     }
 
@@ -40,10 +51,23 @@ public class TransactionService : ITransactionService
         if (existing is null)
             return Result.Fail("Transaction not found.");
 
-        // repo owns reverse-old / apply-new balance logic via Account domain methods
-        await _repo.UpdateAsync(request.ToEntity(id));
+        await _uow.ExecuteInTransactionAsync(async _ =>
+        {
+            await _repo.UpdateAsync(request.ToEntity(id));
+        });
+
         return Result.Ok();
     }
 
-    public Task<bool> DeleteAsync(int id) => _repo.DeleteAsync(id);
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var deleted = false;
+
+        await _uow.ExecuteInTransactionAsync(async _ =>
+        {
+            deleted = await _repo.DeleteAsync(id);
+        });
+
+        return deleted;
+    }
 }

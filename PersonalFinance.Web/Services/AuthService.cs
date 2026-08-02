@@ -44,6 +44,7 @@ public class AuthService
                 return (false, parseError);
 
             _tokenStore.Set(token, userEmail, userId, expires);
+            await _tokenStore.PersistAsync();
             _authState.NotifyAuthChanged();
             return (true, null);
         }
@@ -75,6 +76,7 @@ public class AuthService
                 return (false, parseError);
 
             _tokenStore.Set(token, userEmail, userId, expires);
+            await _tokenStore.PersistAsync();
             _authState.NotifyAuthChanged();
             return (true, null);
         }
@@ -84,9 +86,9 @@ public class AuthService
         }
     }
 
-    public void Logout()
+    public async Task LogoutAsync()
     {
-        _tokenStore.Clear();
+        await _tokenStore.ClearPersistedAsync();
         _authState.NotifyAuthChanged();
     }
 

@@ -1,0 +1,14 @@
+@using PersonalFinance.Services
+@inject AuthTokenStore TokenStore
+@inject ServerAuthenticationStateProvider AuthState
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        await TokenStore.EnsureRestoredAsync();
+        if (TokenStore.IsAuthenticated)
+            AuthState.NotifyAuthChanged();
+    }
+}
