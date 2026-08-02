@@ -14,6 +14,18 @@ public class AccountService : IAccountService
     public async Task<IEnumerable<AccountDto>> GetAllAsync() =>
         (await _repo.GetAllAsync()).ToDtoList();
 
+    public async Task<PagedResult<AccountDto>> GetPagedAsync(int page = 1, int pageSize = 20)
+    {
+        var (items, total) = await _repo.GetPagedAsync(page, pageSize);
+        return new PagedResult<AccountDto>
+        {
+            Items = items.ToDtoList(),
+            TotalCount = total,
+            Page = Math.Max(1, page),
+            PageSize = Math.Clamp(pageSize, 1, 100)
+        };
+    }
+
     public async Task<AccountDto?> GetByIdAsync(int id)
     {
         var account = await _repo.GetByIdAsync(id);

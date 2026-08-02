@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using PersonalFinance.Core.Dtos.Accounts;
 using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Dtos.Transactions;
@@ -16,9 +17,22 @@ public partial class Transactions : ComponentBase
     private List<CategoryDto> _categories = new();
     [Inject]
     private FinanceApiClient Api { get; set; } = default!;
+
+    [Inject]
+    private ToastService Toasts { get; set; } = default!;
+
+    [Inject]
+    private IJSRuntime Js { get; set; } = default!;
     private TransactionFormModel _formModel = new();
     private bool _isLoading = true;
     private bool _showForm;
+    private string _typeFilter = "";
+
+    private IEnumerable<TransactionDto> FilteredTransactions =>
+        string.IsNullOrEmpty(_typeFilter)
+            ? _transactions
+            : _transactions.Where(tx => tx.Type.ToString() == _typeFilter);
+
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -31,11 +45,12 @@ public partial class Transactions : ComponentBase
             _accounts = await Api.GetAccountsAsync();
             _categories = await Api.GetCategoriesAsync();
         }
-        catch
+        catch (Exception ex)
         {
             _transactions = new();
             _accounts = new();
             _categories = new();
+            await Toasts.ErrorAsync($"Could not load transactions: {ex.Message}");
         }
 
         _isLoading = false;
@@ -76,11 +91,13 @@ public partial class Transactions : ComponentBase
                 await Api.UpdateTransactionAsync(model.Id.Value, model.ToUpdateRequest());
 
             _showForm = false;
+            await Toasts.SuccessAsync(model.Id is null ? "Transaction created." : "Transaction updated.");
             await LoadAsync();
         }
         catch (Exception ex)
         {
             model.ErrorMessage = ex.Message;
+            await Toasts.ErrorAsync(ex.Message);
         }
         finally
         {
@@ -92,5 +109,23 @@ public partial class Transactions : ComponentBase
     {
         await Api.DeleteTransactionAsync(id);
         await LoadAsync();
+    }
+
+    private async Task ExportCsvAsync()
+    {
+        try
+        {
+            var bytes = await Api.ExportTransactionsCsvAsync();
+            var b64 = Convert.ToBase64String(bytes);
+            // Single-quoted JS strings avoid C# quote escaping issues
+            await Js.InvokeVoidAsync(
+                "eval",
+                $"(function(){{ var a=document.createElement('a'); a.href='data:text/csv;base64,{b64}'; a.download='transactions.csv'; a.click(); }})()");
+            await Toasts.SuccessAsync("CSV downloaded.");
+        }
+        catch (Exception ex)
+        {
+            await Toasts.ErrorAsync(ex.Message);
+        }
     }
 }

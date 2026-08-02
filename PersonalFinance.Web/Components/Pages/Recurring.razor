@@ -1,0 +1,324 @@
+@page "/recurring"
+@attribute [Authorize]
+@using PersonalFinance.Core.Dtos.Accounts
+@using PersonalFinance.Core.Dtos.Categories
+@using PersonalFinance.Core.Dtos.Recurring
+@using PersonalFinance.Core.Enums
+@using PersonalFinance.Web.Services
+@inject FinanceApiClient Api
+@inject ToastService Toasts
+@rendermode InteractiveServer
+
+<PageTitle>Recurring</PageTitle>
+
+<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+        <h1 class="text-2xl font-bold text-foreground">Recurring</h1>
+        <p class="mt-1 text-sm text-foreground-muted">Monthly templates. Use Generate on the scheduled day to create a real transaction.</p>
+    </div>
+    @if (!_isLoading && !_showForm)
+    {
+        <button class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+                @onclick="ShowCreateForm">
+            Add recurring
+        </button>
+    }
+</div>
+
+@if (_isLoading)
+{
+    <SkeletonRows Rows="4" />
+}
+else
+{
+    @if (_showForm)
+    {
+        <div class="mb-6 rounded-xl border border-border bg-surface p-5">
+            <h2 class="mb-4 text-lg font-semibold text-foreground">New recurring transaction</h2>
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <p class="mb-3 text-sm text-brand">@_error</p>
+            }
+
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="mb-1 block text-xs text-foreground-muted">Description</label>
+                    <input class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
+                           @bind="_form.Description" maxlength="200" />
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs text-foreground-muted">Amount</label>
+                    <input type="number" step="0.01" min="0.01"
+                           class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
+                           @bind="_form.Amount" />
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs text-foreground-muted">Type</label>
+                    <select class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
+                            @bind="_form.Type">
+                        <option value="@TransactionType.Expense">Expense</option>
+                        <option value="@TransactionType.Income">Income</option>
+                        <option value="@TransactionType.Transfer">Transfer</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs text-foreground-muted">Day of month (1–28)</label>
+                    <input type="number" min="1" max="28"
+                           class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
+                           @bind="_form.DayOfMonth" />
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs text-foreground-muted">Account</label>
+                    <select class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
+                            @bind="_form.AccountId">
+                        @foreach (var a in _accounts)
+                        {
+                            <option value="@a.Id">@a.Name</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs text-foreground-muted">Category (optional)</label>
+                    <select class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
+                            @bind="_form.CategoryId">
+                        <option value="0">— None —</option>
+                        @foreach (var c in _categories)
+                        {
+                            <option value="@c.Id">@c.Name</option>
+                        }
+                    </select>
+                </div>
+                @if (_form.Type == TransactionType.Transfer)
+                {
+                    <div class="sm:col-span-2">
+                        <label class="mb-1 block text-xs text-foreground-muted">Transfer to account</label>
+                        <select class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
+                                @bind="_form.TransferToAccountId">
+                            <option value="0">— Select —</option>
+                            @foreach (var a in _accounts)
+                            {
+                                <option value="@a.Id">@a.Name</option>
+                            }
+                        </select>
+                    </div>
+                }
+            </div>
+
+            <div class="mt-4 flex gap-2">
+                <button class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+                        disabled="@_saving" @onclick="SaveAsync">
+                    @(_saving ? "Saving…" : "Save")
+                </button>
+                <button class="rounded-lg border border-border px-4 py-2 text-sm text-foreground hover:bg-surface-2"
+                        disabled="@_saving" @onclick="HideForm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    }
+
+    <div class="overflow-hidden rounded-xl border border-border bg-surface">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-surface-2 text-xs uppercase tracking-wider text-foreground-muted">
+                    <tr>
+                        <th class="px-5 py-3">Description</th>
+                        <th class="px-5 py-3">Day</th>
+                        <th class="hidden px-5 py-3 md:table-cell">Account</th>
+                        <th class="px-5 py-3">Type</th>
+                        <th class="px-5 py-3 text-right">Amount</th>
+                        <th class="hidden px-5 py-3 lg:table-cell">Last generated</th>
+                        <th class="px-5 py-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7" class="px-5 py-8">
+                                <EmptyState Icon="🔁"
+                                            Title="No recurring templates"
+                                            Message="Add rent, salary, or subscriptions that repeat monthly." />
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var r in _items)
+                        {
+                            <tr class="border-t border-border hover:bg-surface-2">
+                                <td class="px-5 py-3.5">
+                                    @r.Description
+                                    @if (!string.IsNullOrEmpty(r.CategoryName))
+                                    {
+                                        <span class="ml-2 text-xs text-foreground-muted">@r.CategoryName</span>
+                                    }
+                                </td>
+                                <td class="px-5 py-3.5 font-mono">@r.DayOfMonth</td>
+                                <td class="hidden px-5 py-3.5 md:table-cell">@r.AccountName</td>
+                                <td class="px-5 py-3.5">@r.Type</td>
+                                <td class="px-5 py-3.5 text-right font-mono">@r.Amount.ToString("C")</td>
+                                <td class="hidden px-5 py-3.5 text-foreground-muted lg:table-cell">
+                                    @(r.LastGeneratedDate?.ToString("MMM d, yyyy") ?? "—")
+                                </td>
+                                <td class="px-5 py-3.5 text-right">
+                                    <div class="flex flex-col gap-1.5 sm:flex-row sm:justify-end sm:gap-2">
+                                        <button class="rounded-md border border-border px-3 py-1.5 text-xs text-foreground-muted hover:bg-surface-2"
+                                                @onclick="() => GenerateAsync(r.Id)">
+                                            Generate
+                                        </button>
+                                        <button class="rounded-md border border-brand px-3 py-1.5 text-xs text-brand hover:bg-brand hover:text-white"
+                                                @onclick="() => DeleteAsync(r.Id)">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private List<RecurringTransactionDto> _items = new();
+    private List<AccountDto> _accounts = new();
+    private List<CategoryDto> _categories = new();
+    private CreateRecurringTransactionRequest _form = new();
+    private bool _isLoading = true;
+    private bool _showForm;
+    private bool _saving;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _items = await Api.GetRecurringAsync();
+            _accounts = await Api.GetAccountsAsync();
+            _categories = await Api.GetCategoriesAsync();
+        }
+        catch (Exception ex)
+        {
+            _items = new();
+            await Toasts.ErrorAsync($"Could not load recurring: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void ShowCreateForm()
+    {
+        _error = null;
+        _form = new CreateRecurringTransactionRequest
+        {
+            AccountId = _accounts.FirstOrDefault()?.Id ?? 0,
+            Type = TransactionType.Expense,
+            DayOfMonth = Math.Min(DateTime.Today.Day, 28),
+            Amount = 0,
+            Description = "",
+            StartDate = DateTime.Today
+        };
+        _showForm = true;
+    }
+
+    private void HideForm()
+    {
+        _showForm = false;
+        _error = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_form.Description))
+        {
+            _error = "Description is required.";
+            return;
+        }
+        if (_form.Amount <= 0)
+        {
+            _error = "Amount must be greater than zero.";
+            return;
+        }
+        if (_form.AccountId <= 0)
+        {
+            _error = "Select an account.";
+            return;
+        }
+        if (_form.Type == TransactionType.Transfer && (_form.TransferToAccountId is null or 0))
+        {
+            _error = "Select a destination account for transfers.";
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var request = new CreateRecurringTransactionRequest
+            {
+                AccountId = _form.AccountId,
+                CategoryId = _form.CategoryId is null or 0 ? null : _form.CategoryId,
+                TransferToAccountId = _form.Type == TransactionType.Transfer
+                    ? (_form.TransferToAccountId is null or 0 ? null : _form.TransferToAccountId)
+                    : null,
+                Amount = _form.Amount,
+                Type = _form.Type,
+                Description = _form.Description.Trim(),
+                DayOfMonth = Math.Clamp(_form.DayOfMonth, 1, 28),
+                StartDate = _form.StartDate == default ? DateTime.Today : _form.StartDate,
+                IsActive = true
+            };
+
+            await Api.CreateRecurringAsync(request);
+            await Toasts.SuccessAsync("Recurring template created.");
+            _showForm = false;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            await Toasts.ErrorAsync(ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task GenerateAsync(int id)
+    {
+        try
+        {
+            var tx = await Api.GenerateRecurringAsync(id);
+            await Toasts.SuccessAsync($"Generated: {tx.Description} ({tx.Amount:C})");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            await Toasts.ErrorAsync(ex.Message);
+        }
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        try
+        {
+            await Api.DeleteRecurringAsync(id);
+            await Toasts.SuccessAsync("Recurring template removed.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            await Toasts.ErrorAsync(ex.Message);
+        }
+    }
+}

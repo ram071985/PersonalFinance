@@ -23,9 +23,13 @@
              class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
         <span class="bi bi-calendar-check"></span> Budgets
     </NavLink>
+
+    <NavLink href="recurring" @onclick="OnNavigate"
+             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
+        <span class="bi bi-arrow-repeat"></span> Recurring
+    </NavLink>
 </nav>
 
 @code {
     [Parameter] public EventCallback OnNavigate { get; set; }
 }
-

@@ -11,6 +11,7 @@ public class DashboardServiceTests
 {
     private Mock<IAccountRepository> _accounts = null!;
     private Mock<ITransactionRepository> _transactions = null!;
+    private Mock<IBudgetService> _budgets = null!;
     private DashboardService _sut = null!;
 
     [SetUp]
@@ -18,7 +19,9 @@ public class DashboardServiceTests
     {
         _accounts = new Mock<IAccountRepository>();
         _transactions = new Mock<ITransactionRepository>();
-        _sut = new DashboardService(_accounts.Object, _transactions.Object);
+        _budgets = new Mock<IBudgetService>();
+        _budgets.Setup(b => b.GetByMonthAsync(It.IsAny<int>(), It.IsAny<int>())).ReturnsAsync(Array.Empty<PersonalFinance.Core.Dtos.Budgets.BudgetDto>());
+        _sut = new DashboardService(_accounts.Object, _transactions.Object, _budgets.Object);
     }
 
     [Test]

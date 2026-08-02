@@ -11,8 +11,12 @@ public record LoginRequest(
     [property: Required, EmailAddress] string Email,
     [property: Required] string Password);
 
+public record RefreshRequest(
+    [property: Required] string RefreshToken);
+
 public record AuthResponse(
     [property: JsonPropertyName("token")] string Token,
+    [property: JsonPropertyName("refreshToken")] string RefreshToken,
     [property: JsonPropertyName("email")] string Email,
     [property: JsonPropertyName("userId")] string UserId,
     [property: JsonPropertyName("expiresAt")] DateTime ExpiresAt);

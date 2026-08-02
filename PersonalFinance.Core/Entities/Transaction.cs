@@ -15,6 +15,8 @@ public class Transaction
     public string? Notes { get; set; }
     public DateTime Date { get; set; } = DateTime.UtcNow.Date;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
     public Account Account { get; set; } = null!;
     public Category? Category { get; set; }
     public Account? TransferToAccount { get; set; }

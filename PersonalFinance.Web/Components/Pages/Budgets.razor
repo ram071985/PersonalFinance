@@ -32,7 +32,7 @@
 
 @if (_isLoading)
 {
-    <LoadingSpinner Message="Loading budgets…" />
+    <SkeletonRows Rows="4" />
 }
 else
 {
@@ -51,32 +51,40 @@ else
                 <tr>
                     <th class="px-5 py-3">Category</th>
                     <th class="px-5 py-3 text-right">Limit</th>
-                    <th class="hidden px-5 py-3 md:table-cell">Notes</th>
+                    <th class="px-5 py-3 text-right">Spent</th>
+                    <th class="hidden px-5 py-3 md:table-cell">Progress</th>
                     <th class="px-5 py-3 text-right">Actions</th>
                 </tr>
                 </thead>
                 <tbody>
                 @if (_budgets.Count == 0)
                 {
-                    <tr><td colspan="4" class="px-5 py-8 text-center text-foreground-muted">No budgets for this month.</td></tr>
+                    <tr><td colspan="5" class="px-5 py-8"><EmptyState Icon="📊" Title="No budgets for this month" Message="Set a category limit to track spending." /></td></tr>
                 }
                 else
                 {
                     @foreach (var b in _budgets)
                     {
+                        var pct = (double)Math.Min(b.PercentUsed, 100m);
+                        var barClass = b.IsOverBudget ? "bg-brand" : "bg-success";
                         <tr class="border-t border-border hover:bg-surface-2">
                             <td class="px-5 py-3.5">
-                                @if (!string.IsNullOrEmpty(b.CategoryName))
+                                <span>@(b.CategoryIcon ?? "") @(!string.IsNullOrEmpty(b.CategoryName) ? b.CategoryName : "—")</span>
+                                @if (b.IsOverBudget)
                                 {
-                                    <span>@b.CategoryIcon @b.CategoryName</span>
-                                }
-                                else
-                                {
-                                    <span>—</span>
+                                    <span class="ml-2 text-xs font-medium text-brand">Over</span>
                                 }
                             </td>
                             <td class="px-5 py-3.5 text-right font-mono">@b.Amount.ToString("C")</td>
-                            <td class="hidden px-5 py-3.5 text-foreground-muted md:table-cell">@(b.Notes ?? "—")</td>
+                            <td class="px-5 py-3.5 text-right font-mono @(b.IsOverBudget ? "text-brand" : "")">@b.Spent.ToString("C")</td>
+                            <td class="hidden px-5 py-3.5 md:table-cell">
+                                <div class="flex items-center gap-2">
+                                    <div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
+                                        <div class="h-full @barClass" style="width: @(pct.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                                    </div>
+                                    <span class="w-12 text-right text-xs text-foreground-muted">@b.PercentUsed.ToString("0.#")%</span>
+                                </div>
+                            </td>
                             <td class="px-5 py-3.5 text-right">
                                 <div class="flex flex-col gap-1.5 sm:flex-row sm:justify-end sm:gap-2">
                                     <button class="rounded-md border border-border px-3 py-1.5 text-xs text-foreground-muted hover:bg-surface-2" @onclick="() => ShowEditForm(b)">Edit</button>

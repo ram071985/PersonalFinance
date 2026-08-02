@@ -9,6 +9,8 @@ public class AuthService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly AuthTokenStore _tokenStore;
     private readonly ServerAuthenticationStateProvider _authState;
+    private readonly object _refreshLock = new();
+    private Task<bool>? _refreshInFlight;
 
     public AuthService(
         IHttpClientFactory httpClientFactory,
@@ -28,10 +30,7 @@ public class AuthService
         try
         {
             var http = CreateClient();
-            var response = await http.PostAsJsonAsync(
-                "api/auth/login",
-                new { email, password });
-
+            var response = await http.PostAsJsonAsync("api/auth/login", new { email, password });
             var body = await response.Content.ReadAsStringAsync();
 
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
@@ -40,10 +39,10 @@ public class AuthService
             if (!response.IsSuccessStatusCode)
                 return (false, $"Login failed ({(int)response.StatusCode}): {body}");
 
-            if (!TryParseAuth(body, out var token, out var userEmail, out var userId, out var expires, out var parseError))
+            if (!TryParseAuth(body, out var token, out var refresh, out var userEmail, out var userId, out var expires, out var parseError))
                 return (false, parseError);
 
-            _tokenStore.Set(token, userEmail, userId, expires);
+            _tokenStore.Set(token, refresh, userEmail, userId, expires);
             await _tokenStore.PersistAsync();
             _authState.NotifyAuthChanged();
             return (true, null);
@@ -59,10 +58,7 @@ public class AuthService
         try
         {
             var http = CreateClient();
-            var response = await http.PostAsJsonAsync(
-                "api/auth/register",
-                new { email, password });
-
+            var response = await http.PostAsJsonAsync("api/auth/register", new { email, password });
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -72,10 +68,10 @@ public class AuthService
                 return (false, $"Registration failed ({(int)response.StatusCode}): {body}");
             }
 
-            if (!TryParseAuth(body, out var token, out var userEmail, out var userId, out var expires, out var parseError))
+            if (!TryParseAuth(body, out var token, out var refresh, out var userEmail, out var userId, out var expires, out var parseError))
                 return (false, parseError);
 
-            _tokenStore.Set(token, userEmail, userId, expires);
+            _tokenStore.Set(token, refresh, userEmail, userId, expires);
             await _tokenStore.PersistAsync();
             _authState.NotifyAuthChanged();
             return (true, null);
@@ -86,8 +82,74 @@ public class AuthService
         }
     }
 
+    /// <summary>Uses stored refresh token to get a new access token. Returns false if re-login required.</summary>
+    public Task<bool> TryRefreshAsync()
+    {
+        lock (_refreshLock)
+        {
+            _refreshInFlight ??= RefreshCoreAsync();
+            return _refreshInFlight;
+        }
+    }
+
+    private async Task<bool> RefreshCoreAsync()
+    {
+        try
+        {
+            await _tokenStore.EnsureRestoredAsync();
+            if (string.IsNullOrWhiteSpace(_tokenStore.RefreshToken))
+                return false;
+
+            var http = CreateClient();
+            var response = await http.PostAsJsonAsync(
+                "api/auth/refresh",
+                new { refreshToken = _tokenStore.RefreshToken });
+
+            var body = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                await _tokenStore.ClearPersistedAsync();
+                _authState.NotifyAuthChanged();
+                return false;
+            }
+
+            if (!TryParseAuth(body, out var token, out var refresh, out var email, out var userId, out var expires, out _))
+            {
+                await _tokenStore.ClearPersistedAsync();
+                _authState.NotifyAuthChanged();
+                return false;
+            }
+
+            _tokenStore.Set(token, refresh ?? _tokenStore.RefreshToken, email, userId, expires);
+            await _tokenStore.PersistAsync();
+            _authState.NotifyAuthChanged();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            lock (_refreshLock) _refreshInFlight = null;
+        }
+    }
+
     public async Task LogoutAsync()
     {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(_tokenStore.AccessToken))
+            {
+                var http = CreateClient();
+                using var req = new HttpRequestMessage(HttpMethod.Post, "api/auth/logout");
+                req.Headers.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _tokenStore.AccessToken);
+                await http.SendAsync(req);
+            }
+        }
+        catch { /* ignore */ }
+
         await _tokenStore.ClearPersistedAsync();
         _authState.NotifyAuthChanged();
     }
@@ -95,15 +157,17 @@ public class AuthService
     private static bool TryParseAuth(
         string body,
         out string token,
+        out string? refreshToken,
         out string email,
         out string userId,
         out DateTime expiresAt,
         out string? error)
     {
         token = "";
+        refreshToken = null;
         email = "";
         userId = "";
-        expiresAt = DateTime.UtcNow.AddHours(8);
+        expiresAt = DateTime.UtcNow.AddHours(1);
         error = null;
 
         try
@@ -112,6 +176,7 @@ public class AuthService
             var root = doc.RootElement;
 
             token = ReadString(root, "token", "Token", "accessToken", "access_token") ?? "";
+            refreshToken = ReadString(root, "refreshToken", "RefreshToken", "refresh_token");
             email = ReadString(root, "email", "Email") ?? "";
             userId = ReadString(root, "userId", "UserId", "id", "Id") ?? "";
 

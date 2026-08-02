@@ -4,6 +4,7 @@ using PersonalFinance.Core.Dtos.Transactions;
 using PersonalFinance.Core.Entities;
 using PersonalFinance.Core.Enums;
 using PersonalFinance.Core.Interfaces;
+using Microsoft.Extensions.Logging;
 using PersonalFinance.Infrastructure.Services;
 
 namespace PersonalFinance.Tests.Services;
@@ -13,6 +14,8 @@ public class TransactionServiceTests
 {
     private Mock<ITransactionRepository> _repo = null!;
     private Mock<IUnitOfWork> _uow = null!;
+    private Mock<ICurrentUserService> _currentUser = null!;
+    private Mock<ILogger<TransactionService>> _logger = null!;
     private TransactionService _sut = null!;
 
     [SetUp]
@@ -20,13 +23,16 @@ public class TransactionServiceTests
     {
         _repo = new Mock<ITransactionRepository>();
         _uow = new Mock<IUnitOfWork>();
+        _currentUser = new Mock<ICurrentUserService>();
+        _logger = new Mock<ILogger<TransactionService>>();
+        _currentUser.Setup(c => c.UserId).Returns("test-user");
         // Execute the transactional callback immediately (no real DB).
         _uow.Setup(u => u.ExecuteInTransactionAsync(
                 It.IsAny<Func<CancellationToken, Task>>(),
                 It.IsAny<CancellationToken>()))
             .Returns<Func<CancellationToken, Task>, CancellationToken>(
                 async (op, ct) => await op(ct));
-        _sut = new TransactionService(_repo.Object, _uow.Object);
+        _sut = new TransactionService(_repo.Object, _uow.Object, _currentUser.Object, _logger.Object);
     }
 
     private static Transaction CreateSampleTransaction(int id = 1) => new()

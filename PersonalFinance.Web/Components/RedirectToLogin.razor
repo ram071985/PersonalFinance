@@ -1,6 +1,7 @@
 @using PersonalFinance.Services
 @inject NavigationManager Navigation
 @inject AuthTokenStore TokenStore
+@inject AuthService Auth
 @inject ServerAuthenticationStateProvider AuthState
 
 @code {
@@ -13,19 +14,27 @@
             || relative.StartsWith("register", StringComparison.OrdinalIgnoreCase))
             return;
 
-        // Give JS a moment, then restore token before deciding to bounce to login
         await TokenStore.EnsureRestoredAsync();
+
+        if (!TokenStore.IsAuthenticated
+            && !string.IsNullOrWhiteSpace(TokenStore.RefreshToken))
+        {
+            await Auth.TryRefreshAsync();
+        }
+
         if (!TokenStore.IsAuthenticated)
         {
-            // One short retry — first auth check often runs before sessionStorage is reachable
             await Task.Delay(50);
             await TokenStore.EnsureRestoredAsync();
+            if (!TokenStore.IsAuthenticated
+                && !string.IsNullOrWhiteSpace(TokenStore.RefreshToken))
+                await Auth.TryRefreshAsync();
         }
 
         if (TokenStore.IsAuthenticated)
         {
             AuthState.NotifyAuthChanged();
-            return; // stay on the protected page; auth state will re-render as authorized
+            return;
         }
 
         Navigation.NavigateTo(

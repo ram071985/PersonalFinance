@@ -14,4 +14,6 @@ public interface ITransactionRepository
     Task<bool> DeleteAsync(int id);
     Task<decimal> GetMonthlyIncomeAsync(int year, int month);
     Task<decimal> GetMonthlyExpensesAsync(int year, int month);
+    Task<(IReadOnlyList<Transaction> Items, int Total)> GetPagedAsync(int page, int pageSize);
+    Task<decimal> GetCategorySpentAsync(int categoryId, int year, int month);
 }

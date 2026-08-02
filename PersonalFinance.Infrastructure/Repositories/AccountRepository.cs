@@ -66,4 +66,19 @@ public class AccountRepository : IAccountRepository
         await _db.Accounts
             .Where(a => a.UserId == UserId && a.IsActive)
             .SumAsync(a => a.Balance);
+
+    public async Task<(IReadOnlyList<Account> Items, int Total)> GetPagedAsync(int page, int pageSize)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        var query = _db.Accounts.Where(a => a.UserId == UserId && a.IsActive);
+        var total = await query.CountAsync();
+        var items = await query
+            .OrderBy(a => a.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+        return (items, total);
+    }
 }

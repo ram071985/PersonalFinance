@@ -27,6 +27,7 @@ builder.Services.AddScoped<ServerAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<ServerAuthenticationStateProvider>());
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<ToastService>();
 var apiBase = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7000/";
 
 // Login/register — no bearer
@@ -39,7 +40,8 @@ builder.Services.AddScoped<FinanceApiClient>(sp =>
 {
     var http = sp.GetRequiredService<IHttpClientFactory>().CreateClient("FinanceApi");
     var tokens = sp.GetRequiredService<AuthTokenStore>();
-    return new FinanceApiClient(http, tokens);
+    var auth = sp.GetRequiredService<AuthService>();
+    return new FinanceApiClient(http, tokens, auth);
 });
 
 var app = builder.Build();

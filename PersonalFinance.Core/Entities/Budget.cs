@@ -10,6 +10,8 @@ public class Budget
     public int Month { get; set; } // 1-12
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
 
     public Category Category { get; set; } = null!;
 }

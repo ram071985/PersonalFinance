@@ -11,13 +11,17 @@ namespace PersonalFinance.Tests.Services;
 public class BudgetServiceTests
 {
     private Mock<IBudgetRepository> _repo = null!;
+    private Mock<ITransactionRepository> _txRepo = null!;
     private BudgetService _sut = null!;
 
     [SetUp]
     public void SetUp()
     {
         _repo = new Mock<IBudgetRepository>();
-        _sut = new BudgetService(_repo.Object);
+        _txRepo = new Mock<ITransactionRepository>();
+        _txRepo.Setup(r => r.GetCategorySpentAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()))
+            .ReturnsAsync(0m);
+        _sut = new BudgetService(_repo.Object, _txRepo.Object);
     }
 
     private static Budget CreateSampleBudget(int id = 1) => new()

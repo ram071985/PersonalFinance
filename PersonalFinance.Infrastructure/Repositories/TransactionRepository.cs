@@ -113,7 +113,8 @@ public class TransactionRepository : ITransactionRepository
         if (transaction is null) return false;
 
         await ApplyBalanceAsync(transaction, apply: false);
-        _db.Transactions.Remove(transaction);
+        transaction.IsDeleted = true;
+        transaction.DeletedAt = DateTime.UtcNow;
         // SaveChanges is owned by IUnitOfWork (service layer).
         return true;
     }
@@ -177,5 +178,33 @@ public class TransactionRepository : ITransactionRepository
                 toAccount.ApplyTransferIn(tx.Amount);
         }
     }
-}
 
+    public async Task<(IReadOnlyList<Transaction> Items, int Total)> GetPagedAsync(int page, int pageSize)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        var query = _db.Transactions
+            .Include(t => t.Account)
+            .Include(t => t.Category)
+            .Where(t => t.UserId == UserId);
+
+        var total = await query.CountAsync();
+        var items = await query
+            .OrderByDescending(t => t.Date)
+            .ThenByDescending(t => t.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+        return (items, total);
+    }
+
+    public async Task<decimal> GetCategorySpentAsync(int categoryId, int year, int month) =>
+        await _db.Transactions
+            .Where(t => t.UserId == UserId
+                     && t.CategoryId == categoryId
+                     && t.Type == TransactionType.Expense
+                     && t.Date.Year == year
+                     && t.Date.Month == month)
+            .SumAsync(t => t.Amount);
+}

@@ -5,6 +5,7 @@ using PersonalFinance.Core.Dtos.Budgets;
 using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Dtos.Dashboard;
 using PersonalFinance.Core.Dtos.Transactions;
+using PersonalFinance.Core.Dtos.Recurring;
 using PersonalFinance.Core.Enums;
 using PersonalFinance.Services;
 
@@ -18,11 +19,13 @@ public class FinanceApiClient
 {
     private readonly HttpClient _http;
     private readonly AuthTokenStore _tokens;
+    private readonly AuthService _auth;
 
-    public FinanceApiClient(HttpClient http, AuthTokenStore tokens)
+    public FinanceApiClient(HttpClient http, AuthTokenStore tokens, AuthService auth)
     {
         _http = http;
         _tokens = tokens;
+        _auth = auth;
     }
 
     private void ApplyBearer(HttpRequestMessage request)
@@ -34,12 +37,8 @@ public class FinanceApiClient
         }
     }
 
-    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
-    {
-        await _tokens.EnsureRestoredAsync();
-        ApplyBearer(request);
-        return await _http.SendAsync(request);
-    }
+    private Task<HttpResponseMessage> SendAsync(HttpRequestMessage request) =>
+        SendWithRefreshAsync(request);
 
     private async Task EnsureSuccess(HttpResponseMessage response)
     {
@@ -50,6 +49,39 @@ public class FinanceApiClient
 
         var body = await response.Content.ReadAsStringAsync();
         throw new HttpRequestException($"API {(int)response.StatusCode}: {body}");
+    }
+
+    private async Task<HttpResponseMessage> SendWithRefreshAsync(HttpRequestMessage request)
+    {
+        await _tokens.EnsureRestoredAsync();
+        if (_tokens.AccessTokenExpiringSoon || string.IsNullOrWhiteSpace(_tokens.AccessToken))
+            await _auth.TryRefreshAsync();
+
+        ApplyBearer(request);
+        var response = await _http.SendAsync(request);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+            && !string.IsNullOrWhiteSpace(_tokens.RefreshToken))
+        {
+            var refreshed = await _auth.TryRefreshAsync();
+            if (refreshed)
+            {
+                // retry once with new access token
+                var retry = new HttpRequestMessage(request.Method, request.RequestUri);
+                if (request.Content is not null)
+                {
+                    var bytes = await request.Content.ReadAsByteArrayAsync();
+                    retry.Content = new ByteArrayContent(bytes);
+                    foreach (var h in request.Content.Headers)
+                        retry.Content.Headers.TryAddWithoutValidation(h.Key, h.Value);
+                }
+                ApplyBearer(retry);
+                response.Dispose();
+                response = await _http.SendAsync(retry);
+            }
+        }
+
+        return response;
     }
 
     private async Task<T?> GetJsonAsync<T>(string url)
@@ -124,6 +156,14 @@ public class FinanceApiClient
     public async Task<List<TransactionDto>> GetTransactionsAsync() =>
         await GetJsonAsync<List<TransactionDto>>("api/transactions") ?? new();
 
+    public async Task<byte[]> ExportTransactionsCsvAsync()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "api/transactions/export/csv");
+        var response = await SendAsync(request);
+        await EnsureSuccess(response);
+        return await response.Content.ReadAsByteArrayAsync();
+    }
+
     public async Task<List<TransactionDto>> GetRecentTransactionsAsync(int count = 10) =>
         await GetJsonAsync<List<TransactionDto>>($"api/transactions/recent?count={count}") ?? new();
 
@@ -151,6 +191,19 @@ public class FinanceApiClient
 
     public Task DeleteBudgetAsync(int id) =>
         DeleteAsync($"api/budgets/{id}");
+
+    // ── Recurring ─────────────────────────────────────────
+    public async Task<List<RecurringTransactionDto>> GetRecurringAsync() =>
+        await GetJsonAsync<List<RecurringTransactionDto>>("api/recurring-transactions") ?? new();
+
+    public Task<RecurringTransactionDto> CreateRecurringAsync(CreateRecurringTransactionRequest request) =>
+        PostJsonAsync<RecurringTransactionDto>("api/recurring-transactions", request);
+
+    public Task DeleteRecurringAsync(int id) =>
+        DeleteAsync($"api/recurring-transactions/{id}");
+
+    public Task<TransactionDto> GenerateRecurringAsync(int id) =>
+        PostJsonAsync<TransactionDto>($"api/recurring-transactions/{id}/generate", new { });
 
     // ── Dashboard ─────────────────────────────────────────
     public Task<DashboardDto?> GetDashboardAsync() =>

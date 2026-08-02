@@ -12,8 +12,13 @@ public static class AccountEndpoints
             .WithTags("Accounts")
             .RequireAuthorization();
 
-        group.MapGet("/", async (IAccountService service) =>
-            Results.Ok(await service.GetAllAsync()));
+        group.MapGet("/", async (IAccountService service, int? page, int? pageSize) =>
+        {
+            if (page is null && pageSize is null)
+                return Results.Ok(await service.GetAllAsync());
+
+            return Results.Ok(await service.GetPagedAsync(page ?? 1, pageSize ?? 20));
+        });
 
         group.MapGet("/{id:int}", async (int id, IAccountService service) =>
         {

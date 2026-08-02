@@ -6,6 +6,7 @@
 @using PersonalFinance.Web.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @inject FinanceApiClient Api
+@inject ToastService Toasts
 @inject AuthenticationStateProvider AuthStateProvider
 @inject PersonalFinance.Services.AuthTokenStore TokenStore
 @rendermode InteractiveServer
@@ -59,6 +60,25 @@ else
         </div>
     </div>
 
+    @if (_dashboard.OverBudget.Count > 0)
+    {
+        <div class="mb-8 rounded-xl border border-brand/40 bg-surface p-5">
+            <h2 class="mb-3 text-lg font-semibold text-brand">Over budget</h2>
+            <ul class="space-y-2 text-sm">
+                @foreach (var b in _dashboard.OverBudget)
+                {
+                    <li class="flex items-center justify-between gap-3">
+                        <span>@(b.CategoryIcon ?? "") @b.CategoryName</span>
+                        <span class="font-mono text-brand">
+                            @b.Spent.ToString("C") / @b.Amount.ToString("C")
+                            <span class="text-foreground-muted">(@b.PercentUsed.ToString("0.#")%)</span>
+                        </span>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+
     <h2 class="mb-4 text-lg font-semibold text-foreground">Recent Transactions</h2>
     <div class="overflow-hidden rounded-xl border border-border bg-surface">
         <div class="overflow-x-auto">
@@ -75,7 +95,7 @@ else
                 <tbody>
                     @if (_dashboard.RecentTransactions.Count == 0)
                     {
-                        <tr><td colspan="5" class="px-5 py-8 text-center text-foreground-muted">No transactions yet.</td></tr>
+                        <tr><td colspan="5" class="px-5 py-8"><EmptyState Icon="💸" Title="No transactions yet" Message="Recent activity will show up here." /></td></tr>
                     }
                     else
                     {

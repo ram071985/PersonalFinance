@@ -4,7 +4,7 @@ using Microsoft.JSInterop;
 namespace PersonalFinance.Services;
 
 /// <summary>
-/// Circuit-scoped JWT store. Persists across refresh via browser sessionStorage.
+/// Circuit-scoped JWT + refresh token store (sessionStorage).
 /// </summary>
 public class AuthTokenStore
 {
@@ -21,6 +21,7 @@ public class AuthTokenStore
     public AuthTokenStore(IJSRuntime js) => _js = js;
 
     public string? AccessToken { get; private set; }
+    public string? RefreshToken { get; private set; }
     public string? Email { get; private set; }
     public string? UserId { get; private set; }
     public DateTime? ExpiresAt { get; private set; }
@@ -29,9 +30,13 @@ public class AuthTokenStore
         !string.IsNullOrWhiteSpace(AccessToken)
         && (ExpiresAt is null || ExpiresAt > DateTime.UtcNow.AddMinutes(-1));
 
-    public void Set(string token, string email, string userId, DateTime expiresAt)
+    public bool AccessTokenExpiringSoon =>
+        ExpiresAt is not null && ExpiresAt <= DateTime.UtcNow.AddMinutes(2);
+
+    public void Set(string token, string? refreshToken, string email, string userId, DateTime expiresAt)
     {
         AccessToken = token;
+        RefreshToken = refreshToken;
         Email = email;
         UserId = userId;
         ExpiresAt = expiresAt.Kind == DateTimeKind.Unspecified
@@ -42,6 +47,7 @@ public class AuthTokenStore
     public void Clear()
     {
         AccessToken = null;
+        RefreshToken = null;
         Email = null;
         UserId = null;
         ExpiresAt = null;
@@ -49,11 +55,8 @@ public class AuthTokenStore
 
     public async Task EnsureRestoredAsync()
     {
-        if (IsAuthenticated)
-            return;
-
-        if (_restoredFromBrowser)
-            return;
+        if (IsAuthenticated) return;
+        if (_restoredFromBrowser) return;
 
         for (var attempt = 0; attempt < 5; attempt++)
         {
@@ -61,40 +64,28 @@ public class AuthTokenStore
             {
                 var json = await _js.InvokeAsync<string?>("sessionStorage.getItem", StorageKey);
                 _restoredFromBrowser = true;
-
-                if (string.IsNullOrWhiteSpace(json))
-                    return;
+                if (string.IsNullOrWhiteSpace(json)) return;
 
                 var stored = JsonSerializer.Deserialize<StoredAuth>(json, JsonOptions);
-                if (stored is null || string.IsNullOrWhiteSpace(stored.Token))
-                    return;
+                if (stored is null || string.IsNullOrWhiteSpace(stored.Token)) return;
 
                 var expires = stored.ExpiresAt.Kind == DateTimeKind.Unspecified
                     ? DateTime.SpecifyKind(stored.ExpiresAt, DateTimeKind.Utc)
                     : stored.ExpiresAt.ToUniversalTime();
 
-                if (expires <= DateTime.UtcNow.AddMinutes(-1))
+                // Keep refresh even if access expired — client can call /refresh
+                if (expires <= DateTime.UtcNow.AddMinutes(-1) && string.IsNullOrWhiteSpace(stored.RefreshToken))
                 {
                     await _js.InvokeVoidAsync("sessionStorage.removeItem", StorageKey);
                     return;
                 }
 
-                Set(stored.Token, stored.Email, stored.UserId, expires);
+                Set(stored.Token, stored.RefreshToken, stored.Email, stored.UserId, expires);
                 return;
             }
-            catch (InvalidOperationException)
-            {
-                // JS runtime not ready yet
-                await Task.Delay(50 * (attempt + 1));
-            }
-            catch (JSDisconnectedException)
-            {
-                return;
-            }
-            catch (JSException)
-            {
-                await Task.Delay(50 * (attempt + 1));
-            }
+            catch (InvalidOperationException) { await Task.Delay(50 * (attempt + 1)); }
+            catch (JSDisconnectedException) { return; }
+            catch (JSException) { await Task.Delay(50 * (attempt + 1)); }
             catch
             {
                 _restoredFromBrowser = true;
@@ -106,7 +97,7 @@ public class AuthTokenStore
 
     public async Task PersistAsync()
     {
-        if (!IsAuthenticated)
+        if (string.IsNullOrWhiteSpace(AccessToken) && string.IsNullOrWhiteSpace(RefreshToken))
         {
             await ClearPersistedAsync();
             return;
@@ -114,10 +105,11 @@ public class AuthTokenStore
 
         var payload = JsonSerializer.Serialize(new StoredAuth
         {
-            Token = AccessToken!,
+            Token = AccessToken ?? "",
+            RefreshToken = RefreshToken,
             Email = Email ?? "",
             UserId = UserId ?? "",
-            ExpiresAt = (ExpiresAt ?? DateTime.UtcNow.AddHours(8)).ToUniversalTime()
+            ExpiresAt = (ExpiresAt ?? DateTime.UtcNow.AddHours(1)).ToUniversalTime()
         }, JsonOptions);
 
         for (var attempt = 0; attempt < 5; attempt++)
@@ -128,18 +120,9 @@ public class AuthTokenStore
                 _restoredFromBrowser = true;
                 return;
             }
-            catch (InvalidOperationException)
-            {
-                await Task.Delay(50 * (attempt + 1));
-            }
-            catch (JSException)
-            {
-                await Task.Delay(50 * (attempt + 1));
-            }
-            catch
-            {
-                return;
-            }
+            catch (InvalidOperationException) { await Task.Delay(50 * (attempt + 1)); }
+            catch (JSException) { await Task.Delay(50 * (attempt + 1)); }
+            catch { return; }
         }
     }
 
@@ -147,19 +130,14 @@ public class AuthTokenStore
     {
         Clear();
         _restoredFromBrowser = true;
-        try
-        {
-            await _js.InvokeVoidAsync("sessionStorage.removeItem", StorageKey);
-        }
-        catch
-        {
-            // ignore
-        }
+        try { await _js.InvokeVoidAsync("sessionStorage.removeItem", StorageKey); }
+        catch { /* ignore */ }
     }
 
     private sealed class StoredAuth
     {
         public string Token { get; set; } = "";
+        public string? RefreshToken { get; set; }
         public string Email { get; set; } = "";
         public string UserId { get; set; } = "";
         public DateTime ExpiresAt { get; set; }

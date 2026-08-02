@@ -11,7 +11,9 @@ public static class AuthEndpoints
 {
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/auth").WithTags("Auth");
+        var group = app.MapGroup("/api/auth")
+            .WithTags("Auth")
+            .RequireRateLimiting("auth");
 
         group.MapPost("/register", async (
             RegisterRequest request,
@@ -41,17 +43,12 @@ public static class AuthEndpoints
             {
                 var errors = result.Errors
                     .GroupBy(e => e.Code.Contains("Password") ? "Password" : "Email")
-                    .ToDictionary(
-                        g => g.Key,
-                        g => g.Select(e => e.Description).ToArray());
-
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray());
                 return Results.ValidationProblem(errors);
             }
 
             await financeBootstrap.InitializeForUserAsync(user.Id);
-
-            var (token, expires) = tokenService.CreateToken(user);
-            return Results.Ok(new AuthResponse(token, user.Email!, user.Id, expires));
+            return Results.Ok(await IssueTokensAsync(user, userManager, tokenService));
         }).Validate<RegisterRequest>();
 
         group.MapPost("/login", async (
@@ -59,11 +56,15 @@ public static class AuthEndpoints
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             TokenService tokenService,
-            UserFinanceBootstrap financeBootstrap) =>
+            UserFinanceBootstrap financeBootstrap,
+            ILoggerFactory loggerFactory) =>
         {
+            var logger = loggerFactory.CreateLogger("PersonalFinance.Auth");
+
             var user = await userManager.FindByEmailAsync(request.Email);
             if (user is null)
             {
+                logger.LogWarning("Login failed — unknown email {Email}", request.Email);
                 return Results.Problem(
                     title: "Invalid credentials",
                     detail: "Invalid email or password.",
@@ -75,6 +76,7 @@ public static class AuthEndpoints
 
             if (check.IsLockedOut)
             {
+                logger.LogWarning("Login locked out for {Email}", request.Email);
                 return Results.Problem(
                     title: "Account locked",
                     detail: "Too many failed attempts. Try again later.",
@@ -83,6 +85,7 @@ public static class AuthEndpoints
 
             if (!check.Succeeded)
             {
+                logger.LogWarning("Login failed — bad password for {Email}", request.Email);
                 return Results.Problem(
                     title: "Invalid credentials",
                     detail: "Invalid email or password.",
@@ -90,10 +93,55 @@ public static class AuthEndpoints
             }
 
             await financeBootstrap.InitializeForUserAsync(user.Id);
-
-            var (token, expires) = tokenService.CreateToken(user);
-            return Results.Ok(new AuthResponse(token, user.Email!, user.Id, expires));
+            logger.LogInformation("Login succeeded for {Email} UserId={UserId}", request.Email, user.Id);
+            return Results.Ok(await IssueTokensAsync(user, userManager, tokenService));
         }).Validate<LoginRequest>();
+
+        group.MapPost("/refresh", async (
+            RefreshRequest request,
+            UserManager<ApplicationUser> userManager,
+            TokenService tokenService,
+            ILoggerFactory loggerFactory) =>
+        {
+            var logger = loggerFactory.CreateLogger("PersonalFinance.Auth");
+            if (string.IsNullOrWhiteSpace(request.RefreshToken))
+                return Results.Unauthorized();
+
+            var hash = TokenService.HashToken(request.RefreshToken);
+            var users = userManager.Users.Where(u => u.RefreshTokenHash == hash).Take(1);
+            var user = users.FirstOrDefault();
+
+            if (user is null
+                || user.RefreshTokenExpiresAt is null
+                || user.RefreshTokenExpiresAt < DateTime.UtcNow)
+            {
+                logger.LogWarning("Refresh failed — invalid or expired token");
+                return Results.Problem(
+                    title: "Invalid refresh token",
+                    detail: "Sign in again.",
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+
+            return Results.Ok(await IssueTokensAsync(user, userManager, tokenService));
+        });
+
+        group.MapPost("/logout", async (
+            ICurrentUserService currentUser,
+            UserManager<ApplicationUser> userManager) =>
+        {
+            if (currentUser.UserId is null)
+                return Results.Unauthorized();
+
+            var user = await userManager.FindByIdAsync(currentUser.UserId);
+            if (user is not null)
+            {
+                user.RefreshTokenHash = null;
+                user.RefreshTokenExpiresAt = null;
+                await userManager.UpdateAsync(user);
+            }
+
+            return Results.NoContent();
+        }).RequireAuthorization();
 
         group.MapGet("/me", async (
             UserManager<ApplicationUser> userManager,
@@ -110,5 +158,20 @@ public static class AuthEndpoints
         }).RequireAuthorization();
 
         return app;
+    }
+
+    private static async Task<AuthResponse> IssueTokensAsync(
+        ApplicationUser user,
+        UserManager<ApplicationUser> userManager,
+        TokenService tokenService)
+    {
+        var (access, accessExpires) = tokenService.CreateAccessToken(user);
+        var (rawRefresh, hash, refreshExpires) = tokenService.CreateRefreshToken();
+
+        user.RefreshTokenHash = hash;
+        user.RefreshTokenExpiresAt = refreshExpires;
+        await userManager.UpdateAsync(user);
+
+        return new AuthResponse(access, rawRefresh, user.Email!, user.Id, accessExpires);
     }
 }

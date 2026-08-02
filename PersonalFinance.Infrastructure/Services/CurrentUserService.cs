@@ -7,16 +7,36 @@ namespace PersonalFinance.Infrastructure.Services;
 
 public class CurrentUserService : ICurrentUserService
 {
+    private static readonly AsyncLocal<string?> OverrideUserId = new();
+
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     public CurrentUserService(IHttpContextAccessor httpContextAccessor) =>
         _httpContextAccessor = httpContextAccessor;
 
+    /// <summary>
+    /// Background jobs: run work as a specific user without an HTTP context.
+    /// </summary>
+    public static IDisposable Impersonate(string userId)
+    {
+        var previous = OverrideUserId.Value;
+        OverrideUserId.Value = userId;
+        return new Restore(previous);
+    }
+
+    private sealed class Restore : IDisposable
+    {
+        private readonly string? _previous;
+        public Restore(string? previous) => _previous = previous;
+        public void Dispose() => OverrideUserId.Value = _previous;
+    }
+
     private ClaimsPrincipal? User =>
         _httpContextAccessor.HttpContext?.User;
 
     public string? UserId =>
-        User?.FindFirstValue(ClaimTypes.NameIdentifier)
+        OverrideUserId.Value
+        ?? User?.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? User?.FindFirstValue(JwtRegisteredClaimNames.Sub)
         ?? User?.FindFirstValue("sub");
 
@@ -26,5 +46,6 @@ public class CurrentUserService : ICurrentUserService
         ?? User?.FindFirstValue("email");
 
     public bool IsAuthenticated =>
-        User?.Identity?.IsAuthenticated ?? false;
+        !string.IsNullOrEmpty(OverrideUserId.Value)
+        || (User?.Identity?.IsAuthenticated ?? false);
 }
