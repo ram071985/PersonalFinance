@@ -152,7 +152,7 @@ html,
   -moz-tab-size: 4;
   /* 3 */
   -o-tab-size: 4;
-     tab-size: 4;
+  tab-size: 4;
   /* 3 */
   font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   /* 4 */
@@ -197,7 +197,7 @@ Add the correct text decoration in Chrome, Edge, and Safari.
 
 abbr:where([title]) {
   -webkit-text-decoration: underline dotted;
-          text-decoration: underline dotted;
+  text-decoration: underline dotted;
 }
 
 /*
@@ -1414,8 +1414,8 @@ h1 {
   }
 
   .sidebar .nav-link,
-    .sidebar .nav-link:link,
-    .sidebar .nav-link:visited {
+  .sidebar .nav-link:link,
+  .sidebar .nav-link:visited {
     color: var(--text-muted) !important;
     background: transparent !important;
   }
@@ -1554,4 +1554,134 @@ h1 {
   .lg\:grid-cols-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+/* Toast notifications */
+.toast-host {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: min(24rem, calc(100vw - 2rem));
+}
+.toast {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border, #333);
+  background: var(--surface, #1a1a1a);
+  color: var(--foreground, #f5f5f5);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  font-size: 0.9rem;
+}
+.toast-success { border-color: rgba(34, 197, 94, 0.5); }
+.toast-error { border-color: rgba(239, 68, 68, 0.55); }
+.toast-warning { border-color: rgba(234, 179, 8, 0.5); }
+.toast-close {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.toast-close:hover { opacity: 1; }
+
+/* Empty states */
+.empty-state {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--foreground-muted, #9ca3af);
+}
+.empty-state-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+.empty-state-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--foreground, #f5f5f5);
+}
+.empty-state-message { margin: 0.35rem 0 0; font-size: 0.9rem; }
+
+@keyframes pf-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.animate-pulse { animation: pf-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.bg-success { background-color: rgb(34 197 94); }
+
+
+/* Auth headings should not show a focus ring (FocusOnNavigate targets inputs instead) */
+.auth-card h1:focus {
+  outline: none;
+}
+
+
+/* Validation under fields (dropdowns + inputs) */
+.field-error,
+.validation-message,
+.text-danger.validation-message {
+  display: block;
+  margin-top: 0.35rem;
+  margin-bottom: 0.15rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--primary, #e11d48);
+}
+
+.form-group .field-error,
+.form-group .validation-message {
+  margin-top: 0.4rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+/* Consistent primary action buttons (page headers) */
+.page-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  background: var(--primary, #e11d48);
+  color: #fff;
+  border: 1px solid transparent;
+}
+.page-action-btn:hover {
+  background: var(--primary-hover, #be123c);
+  color: #fff;
+}
+.page-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.page-action-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  background: transparent;
+  color: var(--text, #f5f5f5);
+  border: 1px solid var(--border, #333);
+}
+.page-action-btn-secondary:hover {
+  background: var(--surface-2, #1a1a1a);
 }

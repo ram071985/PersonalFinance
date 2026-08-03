@@ -1,4 +1,6 @@
 @page "/register"
+@using PersonalFinance.Web.Services
+@using PersonalFinance.Web.Models
 @attribute [AllowAnonymous]
 @layout AuthLayout
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
@@ -26,7 +28,7 @@
 
         <div class="form-group">
             <label class="form-label" for="email">Email</label>
-            <InputText id="email" class="form-control" @bind-Value="_model.Email" autocomplete="username" />
+            <InputText id="email" data-focus-on-nav class="form-control" @bind-Value="_model.Email" autocomplete="username" />
             <ValidationMessage For="() => _model.Email" class="text-danger" style="font-size:0.8rem;margin-top:0.25rem;" />
         </div>
 

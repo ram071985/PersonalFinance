@@ -1,3 +1,4 @@
+@using PersonalFinance.Web.Helpers
 @page "/budgets"
 @attribute [Authorize]
 @rendermode InteractiveAuto
@@ -23,7 +24,7 @@
         </select>
         @if (!_isLoading && !_showForm)
         {
-            <button class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover" @onclick="ShowCreateForm">
+            <button class="page-action-btn" @onclick="ShowCreateForm">
                 Add Budget
             </button>
         }
@@ -59,7 +60,7 @@ else
                 <tbody>
                 @if (_budgets.Count == 0)
                 {
-                    <tr><td colspan="5" class="px-5 py-8"><EmptyState Icon="📊" Title="No budgets for this month" Message="Set a category limit to track spending." /></td></tr>
+                    <tr><td colspan="5" class="px-5 py-8"><EmptyState Icon="📊" Title="No budgets" Message="Set a monthly limit for a category." /></td></tr>
                 }
                 else
                 {
@@ -75,8 +76,8 @@ else
                                     <span class="ml-2 text-xs font-medium text-brand">Over</span>
                                 }
                             </td>
-                            <td class="px-5 py-3.5 text-right font-mono">@b.Amount.ToString("C")</td>
-                            <td class="px-5 py-3.5 text-right font-mono @(b.IsOverBudget ? "text-brand" : "")">@b.Spent.ToString("C")</td>
+                            <td class="px-5 py-3.5 text-right font-mono">@b.Amount.FormatCurrency()</td>
+                            <td class="px-5 py-3.5 text-right font-mono @(b.IsOverBudget ? "text-brand" : "")">@b.Spent.FormatCurrency()</td>
                             <td class="hidden px-5 py-3.5 md:table-cell">
                                 <div class="flex items-center gap-2">
                                     <div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">

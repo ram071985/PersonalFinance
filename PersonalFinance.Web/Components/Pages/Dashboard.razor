@@ -1,3 +1,4 @@
+@using PersonalFinance.Web.Helpers
 @page "/"
 @attribute [Authorize]
 @using PersonalFinance.Core.Dtos
@@ -35,27 +36,27 @@ else if (_error is not null)
 }
 else if (_dashboard is null)
 {
-    <p class="text-foreground-muted">No dashboard data.</p>
+    <p class="text-foreground-muted">Dashboard is empty.</p>
 }
 else
 {
     <div class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="rounded-xl border border-border bg-surface p-5">
             <p class="text-sm text-foreground-muted">Net Worth</p>
-            <p class="mt-1 text-2xl font-semibold text-foreground">@_dashboard.NetWorth.ToString("C")</p>
+            <p class="mt-1 text-2xl font-semibold text-foreground">@_dashboard.NetWorth.FormatCurrency()</p>
         </div>
         <div class="rounded-xl border border-border bg-surface p-5">
             <p class="text-sm text-foreground-muted">Monthly Income</p>
-            <p class="mt-1 text-2xl font-semibold text-success">@_dashboard.MonthlyIncome.ToString("C")</p>
+            <p class="mt-1 text-2xl font-semibold text-success">@_dashboard.MonthlyIncome.FormatCurrency()</p>
         </div>
         <div class="rounded-xl border border-border bg-surface p-5">
             <p class="text-sm text-foreground-muted">Monthly Expenses</p>
-            <p class="mt-1 text-2xl font-semibold text-brand">@_dashboard.MonthlyExpenses.ToString("C")</p>
+            <p class="mt-1 text-2xl font-semibold text-brand">@_dashboard.MonthlyExpenses.FormatCurrency()</p>
         </div>
         <div class="rounded-xl border border-border bg-surface p-5">
             <p class="text-sm text-foreground-muted">Monthly Net</p>
             <p class="mt-1 text-2xl font-semibold @(_dashboard.MonthlyNet >= 0 ? "text-success" : "text-brand")">
-                @_dashboard.MonthlyNet.ToString("C")
+                @_dashboard.MonthlyNet.FormatCurrency()
             </p>
         </div>
     </div>
@@ -70,7 +71,7 @@ else
                     <li class="flex items-center justify-between gap-3">
                         <span>@(b.CategoryIcon ?? "") @b.CategoryName</span>
                         <span class="font-mono text-brand">
-                            @b.Spent.ToString("C") / @b.Amount.ToString("C")
+                            @b.Spent.FormatCurrency() / @b.Amount.FormatCurrency()
                             <span class="text-foreground-muted">(@b.PercentUsed.ToString("0.#")%)</span>
                         </span>
                     </li>
@@ -95,7 +96,7 @@ else
                 <tbody>
                     @if (_dashboard.RecentTransactions.Count == 0)
                     {
-                        <tr><td colspan="5" class="px-5 py-8"><EmptyState Icon="💸" Title="No transactions yet" Message="Recent activity will show up here." /></td></tr>
+                        <tr><td colspan="5" class="px-5 py-8"><EmptyState Icon="💸" Title="No recent activity" Message="New transactions will appear here." /></td></tr>
                     }
                     else
                     {
@@ -113,7 +114,7 @@ else
                                     else { <span class="text-foreground-muted">—</span> }
                                 </td>
                                 <td class="px-5 py-3.5 text-right font-mono @(tx.Type == TransactionType.Income ? "text-success" : "text-brand")">
-                                    @(tx.Type == TransactionType.Income ? "+" : "-")@tx.Amount.ToString("C")
+                                    @(tx.Type == TransactionType.Income ? "+" : "-")@tx.Amount.FormatCurrency()
                                 </td>
                             </tr>
                         }

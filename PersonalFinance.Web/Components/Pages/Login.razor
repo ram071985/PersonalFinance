@@ -1,5 +1,7 @@
 @page "/login"
 @using Microsoft.AspNetCore.Components.Authorization
+@using PersonalFinance.Web.Models
+@using PersonalFinance.Web.Services
 @attribute [AllowAnonymous]
 @layout AuthLayout
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
@@ -29,7 +31,7 @@
 
         <div class="form-group">
             <label class="form-label" for="email">Email</label>
-            <InputText id="email" class="form-control" @bind-Value="_model.Email" autocomplete="username" />
+            <InputText id="email" class="form-control" @bind-Value="_model.Email" autocomplete="username" data-focus-on-nav />
             <ValidationMessage For="() => _model.Email" class="text-danger" style="font-size:0.8rem;margin-top:0.25rem;" />
         </div>
 

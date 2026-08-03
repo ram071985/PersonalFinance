@@ -1,3 +1,4 @@
+using PersonalFinance.Web.Helpers;
 using PersonalFinance.Core.Dtos;
 using PersonalFinance.Core.Dtos.Accounts;
 using PersonalFinance.Core.Dtos.Budgets;
@@ -26,7 +27,7 @@ public static class FormMappings
     {
         Name = form.Name,
         Type = form.Type,
-        Balance = form.Balance,
+        Balance = CurrencyFormat.Sanitize(form.Balance.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         Institution = form.Institution,
         Notes = form.Notes,
         IsActive = form.IsActive
@@ -36,7 +37,7 @@ public static class FormMappings
     {
         Name = form.Name,
         Type = form.Type,
-        Balance = form.Balance,
+        Balance = CurrencyFormat.Sanitize(form.Balance.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         Institution = form.Institution,
         Notes = form.Notes,
         IsActive = form.IsActive
@@ -61,7 +62,7 @@ public static class FormMappings
         AccountId = form.AccountId,
         CategoryId = form.CategoryId,
         TransferToAccountId = form.TransferToAccountId,
-        Amount = form.Amount,
+        Amount = CurrencyFormat.Sanitize(form.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         Type = form.Type,
         Description = form.Description,
         Notes = form.Notes,
@@ -73,7 +74,7 @@ public static class FormMappings
         AccountId = form.AccountId,
         CategoryId = form.CategoryId,
         TransferToAccountId = form.TransferToAccountId,
-        Amount = form.Amount,
+        Amount = CurrencyFormat.Sanitize(form.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         Type = form.Type,
         Description = form.Description,
         Notes = form.Notes,
@@ -123,7 +124,7 @@ public static class FormMappings
     public static CreateBudgetRequest ToCreateRequest(this BudgetFormModel form) => new()
     {
         CategoryId = form.CategoryId,
-        Amount = form.Amount,
+        Amount = CurrencyFormat.Sanitize(form.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         Year = form.Year,
         Month = form.Month,
         Notes = form.Notes
@@ -132,7 +133,7 @@ public static class FormMappings
     public static UpdateBudgetRequest ToUpdateRequest(this BudgetFormModel form) => new()
     {
         CategoryId = form.CategoryId,
-        Amount = form.Amount,
+        Amount = CurrencyFormat.Sanitize(form.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         Year = form.Year,
         Month = form.Month,
         Notes = form.Notes
