@@ -1,6 +1,6 @@
 using System.Net.Http.Headers;
 
-namespace PersonalFinance.Services;
+namespace PersonalFinance.Web.Services;
 
 public class AuthDelegatingHandler : DelegatingHandler
 {

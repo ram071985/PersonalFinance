@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.JSInterop;
 
-namespace PersonalFinance.Services;
+namespace PersonalFinance.Web.Services;
 
 /// <summary>
 /// Circuit-scoped JWT + refresh token store (sessionStorage).

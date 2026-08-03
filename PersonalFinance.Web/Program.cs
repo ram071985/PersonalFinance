@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
-using PersonalFinance.Components;
-using PersonalFinance.Services;
+using PersonalFinance.Web.Components;
 using PersonalFinance.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);

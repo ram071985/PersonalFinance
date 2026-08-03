@@ -4,11 +4,10 @@ using PersonalFinance.Core.Dtos.Accounts;
 using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Dtos.Transactions;
 using PersonalFinance.Core.Enums;
-using PersonalFinance.Models;
 using PersonalFinance.Web.Models;
 using PersonalFinance.Web.Services;
 
-namespace PersonalFinance.Components.Pages;
+namespace PersonalFinance.Web.Components.Pages;
 
 public partial class Transactions : ComponentBase
 {

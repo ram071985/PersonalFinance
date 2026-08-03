@@ -1,8 +1,6 @@
-using System.Net.Http.Json;
 using System.Text.Json;
-using PersonalFinance.Services;
 
-namespace PersonalFinance.Services;
+namespace PersonalFinance.Web.Services;
 
 public class AuthService
 {

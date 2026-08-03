@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Components;
 using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Enums;
-using PersonalFinance.Models;
+using PersonalFinance.Web.Models;
 using PersonalFinance.Web.Services;
 
-namespace PersonalFinanceApp.Pages;
+namespace PersonalFinance.Web.Components.Pages;
 
 public partial class Categories : ComponentBase
 {

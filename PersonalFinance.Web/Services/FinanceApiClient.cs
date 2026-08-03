@@ -7,7 +7,7 @@ using PersonalFinance.Core.Dtos.Dashboard;
 using PersonalFinance.Core.Dtos.Transactions;
 using PersonalFinance.Core.Dtos.Recurring;
 using PersonalFinance.Core.Enums;
-using PersonalFinance.Services;
+using PersonalFinance.Web.Services;
 
 namespace PersonalFinance.Web.Services;
 

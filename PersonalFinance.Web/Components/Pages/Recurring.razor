@@ -56,10 +56,10 @@ else
                 <div>
                     <label class="mb-1 block text-xs text-foreground-muted">Type</label>
                     <select class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
-                            @bind="_form.Type">
-                        <option value="@TransactionType.Expense">Expense</option>
-                        <option value="@TransactionType.Income">Income</option>
-                        <option value="@TransactionType.Transfer">Transfer</option>
+                            @bind="_form.Type" @bind:after="OnTypeChanged">
+                        <option value="@((int)TransactionType.Income)">Income</option>
+                        <option value="@((int)TransactionType.Expense)">Expense</option>
+                        <option value="@((int)TransactionType.Transfer)">Transfer</option>
                     </select>
                 </div>
                 <div>
@@ -228,6 +228,12 @@ else
             StartDate = DateTime.Today
         };
         _showForm = true;
+    }
+
+    private void OnTypeChanged()
+    {
+        if (_form.Type != TransactionType.Transfer)
+            _form.TransferToAccountId = null;
     }
 
     private void HideForm()
