@@ -37,7 +37,7 @@
                         <option value="@a.Id">@a.Name</option>
                     }
                 </InputSelect>
-                <ValidationMessage For="() => Model.AccountId" class="text-xs text-brand" />
+                <ValidationMessage For="() => Model.AccountId" class="field-error" />
             </div>
             <div>
                 <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Category</label>
@@ -54,7 +54,7 @@
                 <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Amount</label>
                 <InputNumber @bind-Value="Model.Amount" step="0.01"
                              class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
-                <ValidationMessage For="() => Model.Amount" class="text-xs text-brand" />
+                <ValidationMessage For="() => Model.Amount" class="field-error" />
             </div>
             @if (Model.Type == TransactionType.Transfer)
             {
@@ -74,7 +74,7 @@
                 <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Description</label>
                 <InputText @bind-Value="Model.Description"
                            class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
-                <ValidationMessage For="() => Model.Description" class="text-xs text-brand" />
+                <ValidationMessage For="() => Model.Description" class="field-error" />
             </div>
             <div class="sm:col-span-2">
                 <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Notes</label>

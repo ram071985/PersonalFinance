@@ -11,8 +11,8 @@ public class MoneyIntegrationTests : IntegrationTestBase
     [Test]
     public async Task CreateExpense_DecreasesAccountBalance()
     {
-        var (token, _, _) = await RegisterAsync($"money_{Guid.NewGuid():N}@test.local");
-        using var client = CreateAuthenticatedClient(token);
+        var auth = await RegisterAsync($"money_{Guid.NewGuid():N}@test.local");
+        using var client = CreateAuthenticatedClient(auth.Token);
 
         var accountRes = await client.PostAsJsonAsync("api/accounts", new
         {
@@ -53,8 +53,8 @@ public class MoneyIntegrationTests : IntegrationTestBase
     [Test]
     public async Task CreateIncome_IncreasesAccountBalance()
     {
-        var (token, _, _) = await RegisterAsync($"income_{Guid.NewGuid():N}@test.local");
-        using var client = CreateAuthenticatedClient(token);
+        var auth = await RegisterAsync($"income_{Guid.NewGuid():N}@test.local");
+        using var client = CreateAuthenticatedClient(auth.Token);
 
         var accountRes = await client.PostAsJsonAsync("api/accounts", new
         {
@@ -93,8 +93,8 @@ public class MoneyIntegrationTests : IntegrationTestBase
     [Test]
     public async Task DeleteTransaction_ReversesBalance()
     {
-        var (token, _, _) = await RegisterAsync($"del_{Guid.NewGuid():N}@test.local");
-        using var client = CreateAuthenticatedClient(token);
+        var auth = await RegisterAsync($"del_{Guid.NewGuid():N}@test.local");
+        using var client = CreateAuthenticatedClient(auth.Token);
 
         var accountRes = await client.PostAsJsonAsync("api/accounts", new
         {
@@ -137,8 +137,8 @@ public class MoneyIntegrationTests : IntegrationTestBase
     [Test]
     public async Task Dashboard_ReturnsSummary_ForCurrentUser()
     {
-        var (token, _, _) = await RegisterAsync($"dash_{Guid.NewGuid():N}@test.local");
-        using var client = CreateAuthenticatedClient(token);
+        var auth = await RegisterAsync($"dash_{Guid.NewGuid():N}@test.local");
+        using var client = CreateAuthenticatedClient(auth.Token);
 
         var response = await client.GetAsync("api/dashboard");
         Assert.That(response.IsSuccessStatusCode, Is.True, await response.Content.ReadAsStringAsync());

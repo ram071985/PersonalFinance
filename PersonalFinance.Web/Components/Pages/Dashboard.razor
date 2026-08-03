@@ -80,6 +80,10 @@ else
         </div>
     }
 
+    <div class="mb-8">
+        <CategorySpendChart Items="_dashboard.CategorySpend" />
+    </div>
+
     <h2 class="mb-4 text-lg font-semibold text-foreground">Recent Transactions</h2>
     <div class="overflow-hidden rounded-xl border border-border bg-surface">
         <div class="overflow-x-auto">
@@ -96,7 +100,7 @@ else
                 <tbody>
                     @if (_dashboard.RecentTransactions.Count == 0)
                     {
-                        <tr><td colspan="5" class="px-5 py-8"><EmptyState Icon="💸" Title="No recent activity" Message="New transactions will appear here." /></td></tr>
+                        <tr><td colspan="5" class="table-empty px-5 py-8"><EmptyState Icon="💸" Title="No recent activity" Message="New transactions will appear here." /></td></tr>
                     }
                     else
                     {

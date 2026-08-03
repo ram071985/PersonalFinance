@@ -1,3 +1,4 @@
+@using PersonalFinance.Web.Helpers
 @page "/recurring"
 @attribute [Authorize]
 @using PersonalFinance.Core.Dtos.Accounts
@@ -11,17 +12,18 @@
 
 <PageTitle>Recurring</PageTitle>
 
-<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+<div class="page-toolbar">
     <div>
-        <h1 class="text-2xl font-bold text-foreground">Recurring</h1>
-        <p class="mt-1 text-sm text-foreground-muted">Monthly templates. Use Generate on the scheduled day to create a real transaction.</p>
+        <h1>Recurring</h1>
+        <p class="mt-1 text-sm text-foreground-muted">Monthly templates. Generate on the due day to post a transaction.</p>
     </div>
     @if (!_isLoading && !_showForm)
     {
-        <button class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
-                @onclick="ShowCreateForm">
-            Add recurring
-        </button>
+        <div class="page-toolbar-actions">
+            <button type="button" class="page-action-btn" @onclick="ShowCreateForm">
+                Add recurring
+            </button>
+        </div>
     }
 </div>
 
@@ -38,24 +40,24 @@ else
 
             @if (!string.IsNullOrEmpty(_error))
             {
-                <p class="mb-3 text-sm text-brand">@_error</p>
+                <p class="field-error mb-3">@_error</p>
             }
 
             <div class="grid gap-4 sm:grid-cols-2">
                 <div>
                     <label class="mb-1 block text-xs text-foreground-muted">Description</label>
-                    <input class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
+                    <input class="pf-select"
                            @bind="_form.Description" maxlength="200" />
                 </div>
                 <div>
                     <label class="mb-1 block text-xs text-foreground-muted">Amount</label>
                     <input type="number" step="0.01" min="0.01"
-                           class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
+                           class="pf-select"
                            @bind="_form.Amount" />
                 </div>
                 <div>
                     <label class="mb-1 block text-xs text-foreground-muted">Type</label>
-                    <select class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
+                    <select class="pf-select"
                             @bind="_form.Type" @bind:after="OnTypeChanged">
                         <option value="@((int)TransactionType.Income)">Income</option>
                         <option value="@((int)TransactionType.Expense)">Expense</option>
@@ -65,12 +67,12 @@ else
                 <div>
                     <label class="mb-1 block text-xs text-foreground-muted">Day of month (1–28)</label>
                     <input type="number" min="1" max="28"
-                           class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
+                           class="pf-select"
                            @bind="_form.DayOfMonth" />
                 </div>
                 <div>
                     <label class="mb-1 block text-xs text-foreground-muted">Account</label>
-                    <select class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
+                    <select class="pf-select"
                             @bind="_form.AccountId">
                         @foreach (var a in _accounts)
                         {
@@ -80,7 +82,7 @@ else
                 </div>
                 <div>
                     <label class="mb-1 block text-xs text-foreground-muted">Category (optional)</label>
-                    <select class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
+                    <select class="pf-select"
                             @bind="_form.CategoryId">
                         <option value="0">— None —</option>
                         @foreach (var c in _categories)
@@ -93,7 +95,7 @@ else
                 {
                     <div class="sm:col-span-2">
                         <label class="mb-1 block text-xs text-foreground-muted">Transfer to account</label>
-                        <select class="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground"
+                        <select class="pf-select"
                                 @bind="_form.TransferToAccountId">
                             <option value="0">— Select —</option>
                             @foreach (var a in _accounts)
@@ -106,11 +108,11 @@ else
             </div>
 
             <div class="mt-4 flex gap-2">
-                <button class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+                <button class="page-action-btn"
                         disabled="@_saving" @onclick="SaveAsync">
                     @(_saving ? "Saving…" : "Save")
                 </button>
-                <button class="rounded-lg border border-border px-4 py-2 text-sm text-foreground hover:bg-surface-2"
+                <button class="page-action-btn-secondary"
                         disabled="@_saving" @onclick="HideForm">
                     Cancel
                 </button>
@@ -136,10 +138,9 @@ else
                     @if (_items.Count == 0)
                     {
                         <tr>
-                            <td colspan="7" class="px-5 py-8">
+                            <td colspan="7" class="table-empty px-5 py-8">
                                 <EmptyState Icon="🔁"
-                                            Title="No recurring templates"
-                                            Message="Add rent, salary, or subscriptions that repeat monthly." />
+                                            Title="No recurring items" Message="Add rent, salary, or other monthly templates." />
                             </td>
                         </tr>
                     }
@@ -158,7 +159,7 @@ else
                                 <td class="px-5 py-3.5 font-mono">@r.DayOfMonth</td>
                                 <td class="hidden px-5 py-3.5 md:table-cell">@r.AccountName</td>
                                 <td class="px-5 py-3.5">@r.Type</td>
-                                <td class="px-5 py-3.5 text-right font-mono">@r.Amount.ToString("C")</td>
+                                <td class="px-5 py-3.5 text-right font-mono">@r.Amount.FormatCurrency()</td>
                                 <td class="hidden px-5 py-3.5 text-foreground-muted lg:table-cell">
                                     @(r.LastGeneratedDate?.ToString("MMM d, yyyy") ?? "—")
                                 </td>
@@ -276,7 +277,7 @@ else
                 TransferToAccountId = _form.Type == TransactionType.Transfer
                     ? (_form.TransferToAccountId is null or 0 ? null : _form.TransferToAccountId)
                     : null,
-                Amount = _form.Amount,
+                Amount = CurrencyFormat.Sanitize(_form.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                 Type = _form.Type,
                 Description = _form.Description.Trim(),
                 DayOfMonth = Math.Clamp(_form.DayOfMonth, 1, 28),

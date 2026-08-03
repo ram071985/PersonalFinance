@@ -1,0 +1,59 @@
+@using PersonalFinance.Core.Dtos.Dashboard
+@using PersonalFinance.Web.Helpers
+@inject IJSRuntime Js
+@implements IAsyncDisposable
+
+<div class="rounded-xl border border-border bg-surface p-5">
+    <h2 class="mb-4 text-lg font-semibold text-foreground">Spending by category</h2>
+    @if (Items is null || Items.Count == 0)
+    {
+        <EmptyState Icon="📊" Title="No expenses this month" Message="Category spend will show here." />
+    }
+    else
+    {
+        <div class="chart-wrap" style="position:relative;height:220px;width:100%;">
+            <canvas id="@_canvasId"></canvas>
+        </div>
+        <ul class="mt-4 space-y-1.5 text-sm">
+            @foreach (var item in Items)
+            {
+                <li class="flex items-center justify-between gap-2">
+                    <span class="text-foreground-muted truncate">@(item.CategoryIcon ?? "") @item.CategoryName</span>
+                    <span class="font-mono text-foreground">@item.Amount.FormatCurrency()</span>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<CategorySpendDto>? Items { get; set; }
+
+    private readonly string _canvasId = "chart-" + Guid.NewGuid().ToString("N")[..8];
+    private bool _rendered;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Items is null || Items.Count == 0)
+            return;
+
+        try
+        {
+            var labels = Items.Select(i => i.CategoryName).ToArray();
+            var values = Items.Select(i => (double)i.Amount).ToArray();
+            await Js.InvokeVoidAsync("pfCharts.renderCategorySpend", _canvasId, labels, values);
+            _rendered = true;
+        }
+        catch
+        {
+            // Chart.js may not be loaded yet on first paint
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!_rendered) return;
+        try { await Js.InvokeVoidAsync("pfCharts.destroy", _canvasId); }
+        catch { /* ignore */ }
+    }
+}

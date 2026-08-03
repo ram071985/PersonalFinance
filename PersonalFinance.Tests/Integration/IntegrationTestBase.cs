@@ -41,7 +41,9 @@ public abstract class IntegrationTestBase
         Factory?.Dispose();
     }
 
-    protected async Task<(string Token, string Email, string UserId)> RegisterAsync(
+    protected record AuthResult(string Token, string? RefreshToken, string Email, string UserId);
+
+    protected async Task<AuthResult> RegisterAsync(
         string email,
         string password = "Password1")
     {
@@ -50,14 +52,10 @@ public abstract class IntegrationTestBase
         Assert.That(response.IsSuccessStatusCode, Is.True,
             $"Register failed ({(int)response.StatusCode}): {body}");
 
-        using var doc = JsonDocument.Parse(body);
-        var root = doc.RootElement;
-        var token = root.GetProperty("token").GetString()!;
-        var userId = root.GetProperty("userId").GetString()!;
-        return (token, email, userId);
+        return ParseAuth(body, email);
     }
 
-    protected async Task<(string Token, string Email, string UserId)> LoginAsync(
+    protected async Task<AuthResult> LoginAsync(
         string email,
         string password = "Password1")
     {
@@ -66,12 +64,34 @@ public abstract class IntegrationTestBase
         Assert.That(response.IsSuccessStatusCode, Is.True,
             $"Login failed ({(int)response.StatusCode}): {body}");
 
+        return ParseAuth(body, email);
+    }
+
+    private static AuthResult ParseAuth(string body, string fallbackEmail)
+    {
         using var doc = JsonDocument.Parse(body);
         var root = doc.RootElement;
-        return (
-            root.GetProperty("token").GetString()!,
-            root.GetProperty("email").GetString()!,
-            root.GetProperty("userId").GetString()!);
+
+        string Read(params string[] names)
+        {
+            foreach (var n in names)
+            {
+                if (root.TryGetProperty(n, out var p) && p.ValueKind == JsonValueKind.String)
+                    return p.GetString()!;
+            }
+            return "";
+        }
+
+        var token = Read("token", "Token", "accessToken");
+        var refresh = root.TryGetProperty("refreshToken", out var rt) ? rt.GetString()
+            : root.TryGetProperty("RefreshToken", out var rt2) ? rt2.GetString()
+            : null;
+        var email = Read("email", "Email");
+        if (string.IsNullOrEmpty(email)) email = fallbackEmail;
+        var userId = Read("userId", "UserId", "id");
+
+        Assert.That(token, Is.Not.Empty, $"No access token in: {body}");
+        return new AuthResult(token, refresh, email, userId);
     }
 
     protected HttpClient CreateAuthenticatedClient(string token)

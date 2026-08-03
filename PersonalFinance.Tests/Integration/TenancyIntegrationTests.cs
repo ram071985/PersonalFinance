@@ -10,8 +10,8 @@ public class TenancyIntegrationTests : IntegrationTestBase
     [Test]
     public async Task UserB_CannotRead_UserA_Account()
     {
-        var (tokenA, _, _) = await RegisterAsync($"a_{Guid.NewGuid():N}@test.local");
-        var (tokenB, _, _) = await RegisterAsync($"b_{Guid.NewGuid():N}@test.local");
+        var (tokenA, _, _, _) = await RegisterAsync($"a_{Guid.NewGuid():N}@test.local");
+        var (tokenB, _, _, _) = await RegisterAsync($"b_{Guid.NewGuid():N}@test.local");
 
         using var clientA = CreateAuthenticatedClient(tokenA);
         using var clientB = CreateAuthenticatedClient(tokenB);
@@ -41,8 +41,8 @@ public class TenancyIntegrationTests : IntegrationTestBase
     [Test]
     public async Task UserB_CannotUpdate_UserA_Account()
     {
-        var (tokenA, _, _) = await RegisterAsync($"a2_{Guid.NewGuid():N}@test.local");
-        var (tokenB, _, _) = await RegisterAsync($"b2_{Guid.NewGuid():N}@test.local");
+        var (tokenA, _, _, _) = await RegisterAsync($"a2_{Guid.NewGuid():N}@test.local");
+        var (tokenB, _, _, _) = await RegisterAsync($"b2_{Guid.NewGuid():N}@test.local");
 
         using var clientA = CreateAuthenticatedClient(tokenA);
         using var clientB = CreateAuthenticatedClient(tokenB);

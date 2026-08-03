@@ -1,4 +1,7 @@
 {
+  "Recurring": {
+    "EnableBackgroundGeneration": true
+  },
   "Cors": {
     "AllowedOrigins": [
       "https://personalfinance-web-fzc5ggcccpb2ayf7.centralus-01.azurewebsites.net"

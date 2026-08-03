@@ -13,4 +13,7 @@ public class DashboardDto
 
     /// <summary>Budgets over limit for the current month.</summary>
     public List<BudgetDto> OverBudget { get; set; } = new();
+
+    /// <summary>Expense totals by category for the current month (chart).</summary>
+    public List<CategorySpendDto> CategorySpend { get; set; } = new();
 }

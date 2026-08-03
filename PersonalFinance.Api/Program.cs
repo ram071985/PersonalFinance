@@ -16,6 +16,7 @@ using PersonalFinance.Infrastructure.Data;
 using PersonalFinance.Infrastructure.Identity;
 using PersonalFinance.Infrastructure.Repositories;
 using PersonalFinance.Infrastructure.Services;
+using PersonalFinance.Infrastructure.Email;
 using PersonalFinance.Api.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -95,6 +96,7 @@ builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<IBudgetRepository, BudgetRepository>();
 builder.Services.AddScoped<IRecurringTransactionRepository, RecurringTransactionRepository>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 builder.Services.AddScoped<IAccountService, AccountService>();
@@ -103,7 +105,11 @@ builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IBudgetService, BudgetService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IRecurringTransactionService, RecurringTransactionService>();
-builder.Services.AddHostedService<RecurringGenerationWorker>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+if (builder.Configuration.GetValue("Recurring:EnableBackgroundGeneration", false))
+    builder.Services.AddHostedService<RecurringGenerationWorker>();
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>(
@@ -203,6 +209,8 @@ app.MapTransactionEndpoints();
 app.MapBudgetEndpoints();
 app.MapDashboardEndpoints();
 app.MapRecurringTransactionEndpoints();
+app.MapNotificationEndpoints();
 
 app.Run();
+
 

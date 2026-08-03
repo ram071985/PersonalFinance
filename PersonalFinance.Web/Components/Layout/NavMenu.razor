@@ -28,6 +28,11 @@
              class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
         <span class="bi bi-arrow-repeat"></span> Recurring
     </NavLink>
+
+    <NavLink href="notifications" @onclick="OnNavigate"
+             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
+        <span class="bi bi-bell"></span> Notifications
+    </NavLink>
 </nav>
 
 @code {

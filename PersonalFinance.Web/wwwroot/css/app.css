@@ -1594,20 +1594,47 @@ h1 {
 }
 .toast-close:hover { opacity: 1; }
 
-/* Empty states */
+/* Empty states — always centered in table cells / cards */
 .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem;
   text-align: center;
-  padding: 2.5rem 1rem;
   color: var(--foreground-muted, #9ca3af);
+  box-sizing: border-box;
 }
-.empty-state-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+.empty-state-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  line-height: 1;
+}
 .empty-state-title {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--foreground, #f5f5f5);
 }
-.empty-state-message { margin: 0.35rem 0 0; font-size: 0.9rem; }
+.empty-state-message {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  max-width: 16rem;
+}
+
+/* Table empty row: full width + center */
+table td.table-empty {
+  text-align: center !important;
+  vertical-align: middle;
+}
+table td.table-empty .empty-state {
+  margin-left: auto;
+  margin-right: auto;
+}
 
 @keyframes pf-pulse {
   0%, 100% { opacity: 1; }
@@ -1685,3 +1712,130 @@ h1 {
 .page-action-btn-secondary:hover {
   background: var(--surface-2, #1a1a1a);
 }
+
+
+/* ── Mobile-first page toolbar ─────────────────────────── */
+.page-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.page-toolbar h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text, #f5f5f5);
+}
+.page-toolbar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+.page-toolbar-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  width: 100%;
+}
+.page-toolbar-actions .page-action-btn,
+.page-toolbar-actions .page-action-btn-secondary {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .page-toolbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .page-toolbar-actions {
+    flex-direction: row;
+    align-items: center;
+    width: auto;
+    flex-wrap: wrap;
+  }
+  .page-toolbar-filters {
+    width: auto;
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .page-toolbar-actions .page-action-btn,
+  .page-toolbar-actions .page-action-btn-secondary {
+    width: auto;
+  }
+}
+
+/* ── Custom select (hide native arrow, consistent dark UI) ─ */
+.pf-select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  color-scheme: dark;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border, #333) !important;
+  background-color: #121216 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.75rem center !important;
+  background-size: 0.75rem !important;
+  color: #f5f5f5 !important;
+  font-size: 0.875rem;
+  line-height: 1.25;
+  cursor: pointer;
+}
+.pf-select option {
+  background-color: #121216;
+  color: #f5f5f5;
+}
+.pf-select:focus {
+  outline: none;
+  border-color: var(--primary, #e11d48);
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.18);
+}
+.pf-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+/* IE/old edge */
+.pf-select::-ms-expand {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .pf-select {
+    width: auto;
+    min-width: 7.5rem;
+  }
+}
+
+/* Mobile content padding */
+@media (max-width: 639px) {
+  .content {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .main-content {
+    padding-top: 3.5rem; /* space under fixed mobile header */
+  }
+}
+
+
+/* form-select shares pf-select look */
+select.form-select,
+.form-select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 0.75rem;
+  padding-right: 2.25rem;
+}
+select.form-select::-ms-expand { display: none; }

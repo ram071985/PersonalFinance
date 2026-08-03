@@ -30,6 +30,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Budget> Budgets => Set<Budget>();
     public DbSet<RecurringTransaction> RecurringTransactions => Set<RecurringTransaction>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -130,5 +131,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             e.HasIndex(x => x.UserId);
             e.HasQueryFilter(x => CurrentUserId != null && x.UserId == CurrentUserId && x.IsActive);
         });
+        modelBuilder.Entity<Notification>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Message).HasMaxLength(1000).IsRequired();
+            e.Property(x => x.Kind).HasMaxLength(40);
+            e.HasIndex(x => new { x.UserId, x.IsRead });
+            e.HasQueryFilter(x => CurrentUserId != null && x.UserId == CurrentUserId);
+        });
+
     }
 }

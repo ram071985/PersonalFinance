@@ -16,6 +16,8 @@ public class TransactionServiceTests
     private Mock<IUnitOfWork> _uow = null!;
     private Mock<ICurrentUserService> _currentUser = null!;
     private Mock<ILogger<TransactionService>> _logger = null!;
+    private Mock<IBudgetService> _budgets = null!;
+    private Mock<INotificationService> _notifications = null!;
     private TransactionService _sut = null!;
 
     [SetUp]
@@ -25,6 +27,10 @@ public class TransactionServiceTests
         _uow = new Mock<IUnitOfWork>();
         _currentUser = new Mock<ICurrentUserService>();
         _logger = new Mock<ILogger<TransactionService>>();
+        _budgets = new Mock<IBudgetService>();
+        _notifications = new Mock<INotificationService>();
+        _budgets.Setup(b => b.GetByMonthAsync(It.IsAny<int>(), It.IsAny<int>()))
+            .ReturnsAsync(Array.Empty<PersonalFinance.Core.Dtos.Budgets.BudgetDto>());
         _currentUser.Setup(c => c.UserId).Returns("test-user");
         // Execute the transactional callback immediately (no real DB).
         _uow.Setup(u => u.ExecuteInTransactionAsync(
@@ -32,7 +38,7 @@ public class TransactionServiceTests
                 It.IsAny<CancellationToken>()))
             .Returns<Func<CancellationToken, Task>, CancellationToken>(
                 async (op, ct) => await op(ct));
-        _sut = new TransactionService(_repo.Object, _uow.Object, _currentUser.Object, _logger.Object);
+        _sut = new TransactionService(_repo.Object, _uow.Object, _currentUser.Object, _budgets.Object, _notifications.Object, _logger.Object);
     }
 
     private static Transaction CreateSampleTransaction(int id = 1) => new()
@@ -188,11 +194,23 @@ public class TransactionServiceTests
     [Test]
     public async Task DeleteAsync_CallsRepository()
     {
+        _repo.Setup(r => r.GetByIdAsync(8)).ReturnsAsync(CreateSampleTransaction(8));
         _repo.Setup(r => r.DeleteAsync(8)).ReturnsAsync(true);
 
         var deleted = await _sut.DeleteAsync(8);
 
         Assert.That(deleted, Is.True);
         _repo.Verify(r => r.DeleteAsync(8), Times.Once);
+    }
+
+    [Test]
+    public async Task DeleteAsync_WhenMissing_ReturnsFalse()
+    {
+        _repo.Setup(r => r.GetByIdAsync(99)).ReturnsAsync((Transaction?)null);
+
+        var deleted = await _sut.DeleteAsync(99);
+
+        Assert.That(deleted, Is.False);
+        _repo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
     }
 }

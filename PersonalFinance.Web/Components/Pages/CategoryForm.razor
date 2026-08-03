@@ -1,3 +1,6 @@
+@using PersonalFinance.Core.Enums
+@using PersonalFinance.Web.Models
+@using PersonalFinance.Web.Models
 
 <div class="mb-6 rounded-xl border border-border bg-surface p-6">
     <h2 class="mb-5 text-lg font-semibold text-foreground">
@@ -11,7 +14,7 @@
                 <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Name</label>
                 <InputText @bind-Value="Model.Name"
                            class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
-                <ValidationMessage For="() => Model.Name" class="text-xs text-brand" />
+                <ValidationMessage For="() => Model.Name" class="field-error" />
             </div>
             <div>
                 <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Type</label>

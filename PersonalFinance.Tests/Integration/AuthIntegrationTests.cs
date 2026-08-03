@@ -10,10 +10,10 @@ public class AuthIntegrationTests : IntegrationTestBase
     public async Task Register_ReturnsJwt()
     {
         var email = $"user_{Guid.NewGuid():N}@test.local";
-        var (token, _, userId) = await RegisterAsync(email);
+        var auth = await RegisterAsync(email);
 
-        Assert.That(token, Is.Not.Empty);
-        Assert.That(userId, Is.Not.Empty);
+        Assert.That(auth.Token, Is.Not.Empty);
+        Assert.That(auth.UserId, Is.Not.Empty);
     }
 
     [Test]
@@ -22,10 +22,10 @@ public class AuthIntegrationTests : IntegrationTestBase
         var email = $"login_{Guid.NewGuid():N}@test.local";
         await RegisterAsync(email);
 
-        var (token, returnedEmail, _) = await LoginAsync(email);
+        var auth = await LoginAsync(email);
 
-        Assert.That(token, Is.Not.Empty);
-        Assert.That(returnedEmail, Is.EqualTo(email).IgnoreCase);
+        Assert.That(auth.Token, Is.Not.Empty);
+        Assert.That(auth.Email, Is.EqualTo(email).IgnoreCase);
     }
 
     [Test]
@@ -52,9 +52,9 @@ public class AuthIntegrationTests : IntegrationTestBase
     public async Task FinanceEndpoint_WithToken_Returns200()
     {
         var email = $"authz_{Guid.NewGuid():N}@test.local";
-        var (token, _, _) = await RegisterAsync(email);
+        var auth = await RegisterAsync(email);
 
-        using var client = CreateAuthenticatedClient(token);
+        using var client = CreateAuthenticatedClient(auth.Token);
         var response = await client.GetAsync("api/accounts");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));

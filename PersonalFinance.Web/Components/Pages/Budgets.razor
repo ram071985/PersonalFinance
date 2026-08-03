@@ -5,26 +5,26 @@
 
 <PageTitle>Budgets</PageTitle>
 
-<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-    <h1 class="text-2xl font-bold text-foreground">Budgets</h1>
-    <div class="flex flex-wrap items-center gap-3">
-        <select @bind="_selectedMonth" @bind:after="LoadAsync"
-                class="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground">
-            @for (var m = 1; m <= 12; m++)
-            {
-                <option value="@m">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
-            }
-        </select>
-        <select @bind="_selectedYear" @bind:after="LoadAsync"
-                class="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground">
-            @for (var y = DateTime.Now.Year - 1; y <= DateTime.Now.Year + 1; y++)
-            {
-                <option value="@y">@y</option>
-            }
-        </select>
+<div class="page-toolbar">
+    <h1>Budgets</h1>
+    <div class="page-toolbar-actions">
+        <div class="page-toolbar-filters">
+            <select @bind="_selectedMonth" @bind:after="LoadAsync" class="pf-select" aria-label="Month">
+                @for (var m = 1; m <= 12; m++)
+                {
+                    <option value="@m">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
+                }
+            </select>
+            <select @bind="_selectedYear" @bind:after="LoadAsync" class="pf-select" aria-label="Year">
+                @for (var y = DateTime.Now.Year - 1; y <= DateTime.Now.Year + 1; y++)
+                {
+                    <option value="@y">@y</option>
+                }
+            </select>
+        </div>
         @if (!_isLoading && !_showForm)
         {
-            <button class="page-action-btn" @onclick="ShowCreateForm">
+            <button type="button" class="page-action-btn" @onclick="ShowCreateForm">
                 Add Budget
             </button>
         }
@@ -60,7 +60,7 @@ else
                 <tbody>
                 @if (_budgets.Count == 0)
                 {
-                    <tr><td colspan="5" class="px-5 py-8"><EmptyState Icon="📊" Title="No budgets" Message="Set a monthly limit for a category." /></td></tr>
+                    <tr><td colspan="5" class="table-empty px-5 py-8"><EmptyState Icon="📊" Title="No budgets" Message="Set a monthly limit for a category." /></td></tr>
                 }
                 else
                 {

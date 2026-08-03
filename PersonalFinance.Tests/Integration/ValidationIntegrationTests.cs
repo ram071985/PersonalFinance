@@ -9,8 +9,8 @@ public class ValidationIntegrationTests : IntegrationTestBase
     [Test]
     public async Task CreateTransaction_ZeroAmount_Returns400()
     {
-        var (token, _, _) = await RegisterAsync($"val_{Guid.NewGuid():N}@test.local");
-        using var client = CreateAuthenticatedClient(token);
+        var auth = await RegisterAsync($"val_{Guid.NewGuid():N}@test.local");
+        using var client = CreateAuthenticatedClient(auth.Token);
 
         // Need an account first
         var accountRes = await client.PostAsJsonAsync("api/accounts", new
@@ -48,8 +48,8 @@ public class ValidationIntegrationTests : IntegrationTestBase
     [Test]
     public async Task CreateAccount_EmptyName_Returns400()
     {
-        var (token, _, _) = await RegisterAsync($"val2_{Guid.NewGuid():N}@test.local");
-        using var client = CreateAuthenticatedClient(token);
+        var auth = await RegisterAsync($"val2_{Guid.NewGuid():N}@test.local");
+        using var client = CreateAuthenticatedClient(auth.Token);
 
         var response = await client.PostAsJsonAsync("api/accounts", new
         {

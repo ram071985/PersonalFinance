@@ -6,6 +6,7 @@ using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Dtos.Dashboard;
 using PersonalFinance.Core.Dtos.Transactions;
 using PersonalFinance.Core.Dtos.Recurring;
+using PersonalFinance.Core.Dtos.Notifications;
 using PersonalFinance.Core.Enums;
 using PersonalFinance.Web.Services;
 
@@ -113,6 +114,13 @@ public class FinanceApiClient
         await EnsureSuccess(response);
     }
 
+    private async Task PostEmptyAsync(string url)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        var response = await SendAsync(request);
+        await EnsureSuccess(response);
+    }
+
     private async Task DeleteAsync(string url)
     {
         using var request = new HttpRequestMessage(HttpMethod.Delete, url);
@@ -204,6 +212,24 @@ public class FinanceApiClient
 
     public Task<TransactionDto> GenerateRecurringAsync(int id) =>
         PostJsonAsync<TransactionDto>($"api/recurring-transactions/{id}/generate", new { });
+
+    // ── Notifications ─────────────────────────────────────
+    public async Task<List<NotificationDto>> GetNotificationsAsync(int take = 20) =>
+        await GetJsonAsync<List<NotificationDto>>($"api/notifications?take={take}") ?? new();
+
+    public async Task<int> GetUnreadNotificationCountAsync()
+    {
+        var el = await GetJsonAsync<System.Text.Json.JsonElement>("api/notifications/unread-count");
+        if (el.ValueKind == System.Text.Json.JsonValueKind.Object && el.TryGetProperty("count", out var c))
+            return c.GetInt32();
+        return 0;
+    }
+
+    public Task MarkNotificationReadAsync(int id) =>
+        PostEmptyAsync($"api/notifications/{id}/read");
+
+    public Task MarkAllNotificationsReadAsync() =>
+        PostEmptyAsync("api/notifications/read-all");
 
     // ── Dashboard ─────────────────────────────────────────
     public Task<DashboardDto?> GetDashboardAsync() =>

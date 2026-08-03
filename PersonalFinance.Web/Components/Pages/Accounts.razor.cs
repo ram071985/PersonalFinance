@@ -13,7 +13,7 @@ public partial class Accounts : ComponentBase
     private bool _isLoading = true;
     private bool _showForm;
     [Inject] private ToastService Toasts { get; set; } = default!;
-
+    [Inject] private FinanceApiClient Api { get; set; } = default!;
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
     private async Task LoadAsync()

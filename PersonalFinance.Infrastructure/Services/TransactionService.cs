@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PersonalFinance.Core.Common;
 using PersonalFinance.Core.Dtos.Transactions;
 using PersonalFinance.Core.Entities;
+using PersonalFinance.Core.Enums;
 using PersonalFinance.Core.Interfaces;
 using PersonalFinance.Core.Mappings;
 
@@ -12,17 +13,23 @@ public class TransactionService : ITransactionService
     private readonly ITransactionRepository _repo;
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserService _currentUser;
+    private readonly IBudgetService _budgets;
+    private readonly INotificationService _notifications;
     private readonly ILogger<TransactionService> _logger;
 
     public TransactionService(
         ITransactionRepository repo,
         IUnitOfWork uow,
         ICurrentUserService currentUser,
+        IBudgetService budgets,
+        INotificationService notifications,
         ILogger<TransactionService> logger)
     {
         _repo = repo;
         _uow = uow;
         _currentUser = currentUser;
+        _budgets = budgets;
+        _notifications = notifications;
         _logger = logger;
     }
 
@@ -72,7 +79,10 @@ public class TransactionService : ITransactionService
             created.Amount);
 
         var full = await _repo.GetByIdAsync(created.Id);
-        return (full ?? created).ToDto();
+        var dto = (full ?? created).ToDto();
+
+        await TryNotifyBudgetAsync(dto);
+        return dto;
     }
 
     public async Task<Result> UpdateAsync(int id, UpdateTransactionRequest request)
@@ -99,21 +109,41 @@ public class TransactionService : ITransactionService
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var deleted = false;
+        var existing = await _repo.GetByIdAsync(id);
+        if (existing is null) return false;
 
         await _uow.ExecuteInTransactionAsync(async _ =>
         {
-            deleted = await _repo.DeleteAsync(id);
+            await _repo.DeleteAsync(id);
         });
 
-        if (deleted)
-        {
-            _logger.LogInformation(
-                "Transaction deleted. UserId={UserId} TransactionId={TransactionId}",
-                _currentUser.UserId,
-                id);
-        }
+        return true;
+    }
 
-        return deleted;
+    private async Task TryNotifyBudgetAsync(TransactionDto tx)
+    {
+        try
+        {
+            if (tx.Type != TransactionType.Expense || tx.CategoryId is null)
+                return;
+            if (_currentUser.UserId is null)
+                return;
+
+            var budgets = await _budgets.GetByMonthAsync(tx.Date.Year, tx.Date.Month);
+            var match = budgets.FirstOrDefault(b => b.CategoryId == tx.CategoryId.Value && b.IsOverBudget);
+            if (match is null)
+                return;
+
+            await _notifications.NotifyBudgetExceededAsync(
+                _currentUser.UserId,
+                _currentUser.Email ?? "",
+                match.CategoryName,
+                match.Spent,
+                match.Amount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Budget notification failed for transaction {Id}", tx.Id);
+        }
     }
 }
