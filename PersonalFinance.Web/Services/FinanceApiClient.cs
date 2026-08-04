@@ -1,14 +1,13 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using PersonalFinance.Web.Services;
 using PersonalFinance.Core.Dtos.Accounts;
 using PersonalFinance.Core.Dtos.Budgets;
 using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Dtos.Dashboard;
-using PersonalFinance.Core.Dtos.Transactions;
 using PersonalFinance.Core.Dtos.Recurring;
-using PersonalFinance.Core.Dtos.Notifications;
+using PersonalFinance.Core.Dtos.Transactions;
 using PersonalFinance.Core.Enums;
-using PersonalFinance.Web.Services;
 
 namespace PersonalFinance.Web.Services;
 
@@ -163,6 +162,33 @@ public class FinanceApiClient
     // ── Transactions ──────────────────────────────────────
     public async Task<List<TransactionDto>> GetTransactionsAsync() =>
         await GetJsonAsync<List<TransactionDto>>("api/transactions") ?? new();
+
+    public async Task<BankStatementImportResult> ImportBankStatementAsync(
+        int accountId,
+        int? expenseCategoryId,
+        int? incomeCategoryId,
+        Stream fileStream,
+        string fileName)
+    {
+        using var content = new MultipartFormDataContent();
+        content.Add(new StringContent(accountId.ToString()), "accountId");
+        if (expenseCategoryId is > 0)
+            content.Add(new StringContent(expenseCategoryId.Value.ToString()), "expenseCategoryId");
+        if (incomeCategoryId is > 0)
+            content.Add(new StringContent(incomeCategoryId.Value.ToString()), "incomeCategoryId");
+
+        var streamContent = new StreamContent(fileStream);
+        streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
+        content.Add(streamContent, "file", fileName);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/transactions/import/csv")
+        {
+            Content = content
+        };
+        var response = await SendAsync(request);
+        await EnsureSuccess(response);
+        return (await response.Content.ReadFromJsonAsync<BankStatementImportResult>())!;
+    }
 
     public async Task<byte[]> ExportTransactionsCsvAsync()
     {

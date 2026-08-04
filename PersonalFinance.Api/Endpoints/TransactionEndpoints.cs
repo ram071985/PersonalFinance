@@ -23,6 +23,31 @@ public static class TransactionEndpoints
         group.MapGet("/recent", async (ITransactionService service, int count = 10) =>
             Results.Ok(await service.GetRecentAsync(count)));
 
+        group.MapPost("/import/csv", async (
+            HttpRequest http,
+            ITransactionService service) =>
+        {
+            if (!http.HasFormContentType)
+                return Results.BadRequest(new { message = "Expected multipart form data." });
+
+            var form = await http.ReadFormAsync();
+            var file = form.Files.GetFile("file") ?? form.Files.FirstOrDefault();
+            if (file is null || file.Length == 0)
+                return Results.BadRequest(new { message = "CSV file is required (field name: file)." });
+
+            if (!int.TryParse(form["accountId"], out var accountId) || accountId <= 0)
+                return Results.BadRequest(new { message = "accountId is required." });
+
+            int? expenseCat = int.TryParse(form["expenseCategoryId"], out var e) && e > 0 ? e : null;
+            int? incomeCat = int.TryParse(form["incomeCategoryId"], out var i) && i > 0 ? i : null;
+
+            await using var stream = file.OpenReadStream();
+            var result = await service.ImportBankStatementAsync(
+                accountId, expenseCat, incomeCat, stream, file.FileName);
+
+            return Results.Ok(result);
+        }).DisableAntiforgery();
+
         group.MapGet("/export/csv", async (ITransactionService service) =>
         {
             var items = (await service.GetAllAsync()).ToList();

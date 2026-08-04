@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PersonalFinance.Api;
 using PersonalFinance.Infrastructure.Data;
 
 namespace PersonalFinance.Tests.Integration;
@@ -9,7 +10,7 @@ namespace PersonalFinance.Tests.Integration;
 /// <summary>
 /// Real API pipeline against a dedicated SQL Server test database.
 /// </summary>
-public class ApiFactory : WebApplicationFactory<Program>
+public class ApiFactory : WebApplicationFactory<ApiAssemblyMarker>
 {
     public string ConnectionString { get; }
 

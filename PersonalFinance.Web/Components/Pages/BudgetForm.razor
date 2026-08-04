@@ -1,6 +1,3 @@
-@using PersonalFinance.Core.Dtos
-@using PersonalFinance.Core.Dtos.Categories
-@using PersonalFinance.Web.Models
 @using PersonalFinance.Web.Models
 
 <div class="mb-6 rounded-xl border border-border bg-surface p-6">
@@ -14,7 +11,7 @@
             <div>
                 <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Category</label>
                 <InputSelect @bind-Value="Model.CategoryId"
-                             class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
+                             class="pf-select pf-select-block">
                     <option value="0">Select category…</option>
                     @foreach (var c in Categories)
                     {
@@ -52,10 +49,10 @@
         }
 
         <div class="mt-6 flex gap-3">
-            <button type="submit" class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-60" disabled="@Model.IsSaving">
+            <button type="submit" class="page-action-btn" disabled="@Model.IsSaving">
                 @(Model.IsSaving ? "Saving…" : "Save")
             </button>
-            <button type="button" class="rounded-lg border border-border px-4 py-2 text-sm text-foreground-muted hover:bg-surface-2" @onclick="OnCancel" disabled="@Model.IsSaving">
+            <button type="button" class="page-action-btn-secondary" @onclick="OnCancel" disabled="@Model.IsSaving">
                 Cancel
             </button>
         </div>
@@ -64,7 +61,7 @@
 
 @code {
     [Parameter, EditorRequired] public BudgetFormModel Model { get; set; } = new();
-    [Parameter] public List<CategoryDto> Categories { get; set; } = new();
+    [Parameter] public List<PersonalFinance.Core.Dtos.Categories.CategoryDto> Categories { get; set; } = new();
     [Parameter] public EventCallback<BudgetFormModel> OnSave { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 

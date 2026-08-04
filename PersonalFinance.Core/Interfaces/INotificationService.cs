@@ -1,4 +1,4 @@
-using PersonalFinance.Core.Dtos.Notifications;
+using PersonalFinance.Core.Dtos.Transactions;
 
 namespace PersonalFinance.Core.Interfaces;
 

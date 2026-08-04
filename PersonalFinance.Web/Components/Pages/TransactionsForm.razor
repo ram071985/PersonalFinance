@@ -1,7 +1,3 @@
-@using PersonalFinance.Core.Dtos
-@using PersonalFinance.Core.Dtos.Accounts
-@using PersonalFinance.Core.Dtos.Categories
-@using PersonalFinance.Core.Enums
 @using PersonalFinance.Web.Models
 
 <div class="mb-6 rounded-xl border border-border bg-surface p-6">
@@ -21,9 +17,9 @@
                 <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Type</label>
                 <InputSelect @bind-Value="Model.Type"
                              class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
-                    @foreach (TransactionType t in Enum.GetValues<TransactionType>())
+                    @foreach (var t in EnumOptions.TransactionTypes)
                     {
-                        <option value="@t">@t</option>
+                        <option value="@t.Value">@t.Name</option>
                     }
                 </InputSelect>
             </div>
@@ -101,8 +97,8 @@
 
 @code {
     [Parameter, EditorRequired] public TransactionFormModel Model { get; set; } = new();
-    [Parameter] public List<AccountDto> Accounts { get; set; } = new();
-    [Parameter] public List<CategoryDto> Categories { get; set; } = new();
+    [Parameter] public List<PersonalFinance.Core.Dtos.Accounts.AccountDto> Accounts { get; set; } = new();
+    [Parameter] public List<PersonalFinance.Core.Dtos.Categories.CategoryDto> Categories { get; set; } = new();
     [Parameter] public EventCallback<TransactionFormModel> OnSave { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 

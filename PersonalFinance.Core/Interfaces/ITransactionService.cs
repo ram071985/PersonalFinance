@@ -13,4 +13,11 @@ public interface ITransactionService
     Task<TransactionDto> CreateAsync(CreateTransactionRequest request);
     Task<Result> UpdateAsync(int id, UpdateTransactionRequest request);
     Task<bool> DeleteAsync(int id);
+
+    Task<BankStatementImportResult> ImportBankStatementAsync(
+        int accountId,
+        int? defaultExpenseCategoryId,
+        int? defaultIncomeCategoryId,
+        Stream csvStream,
+        string? fileName = null);
 }

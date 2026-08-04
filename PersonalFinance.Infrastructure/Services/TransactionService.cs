@@ -5,6 +5,7 @@ using PersonalFinance.Core.Entities;
 using PersonalFinance.Core.Enums;
 using PersonalFinance.Core.Interfaces;
 using PersonalFinance.Core.Mappings;
+using PersonalFinance.Core.Services;
 
 namespace PersonalFinance.Infrastructure.Services;
 
@@ -145,5 +146,58 @@ public class TransactionService : ITransactionService
         {
             _logger.LogWarning(ex, "Budget notification failed for transaction {Id}", tx.Id);
         }
+    }
+
+    public async Task<BankStatementImportResult> ImportBankStatementAsync(
+        int accountId,
+        int? defaultExpenseCategoryId,
+        int? defaultIncomeCategoryId,
+        Stream csvStream,
+        string? fileName = null)
+    {
+        var result = new BankStatementImportResult();
+        IReadOnlyList<BankStatementCsvParser.ParsedRow> rows;
+        try
+        {
+            rows = BankStatementCsvParser.Parse(csvStream);
+        }
+        catch (Exception ex)
+        {
+            result.Errors.Add(ex.Message);
+            return result;
+        }
+
+        foreach (var row in rows)
+        {
+            try
+            {
+                var isExpense = row.SignedAmount < 0;
+                var amount = Math.Abs(row.SignedAmount);
+                var type = isExpense ? TransactionType.Expense : TransactionType.Income;
+                var categoryId = isExpense ? defaultExpenseCategoryId : defaultIncomeCategoryId;
+
+                await CreateAsync(new CreateTransactionRequest
+                {
+                    AccountId = accountId,
+                    CategoryId = categoryId,
+                    Amount = amount,
+                    Type = type,
+                    Description = row.Description.Length > 200
+                        ? row.Description[..200]
+                        : row.Description,
+                    Date = row.Date.Date,
+                    Notes = string.IsNullOrWhiteSpace(fileName) ? "Bank CSV import" : $"Imported from {fileName}"
+                });
+                result.Imported++;
+            }
+            catch (Exception ex)
+            {
+                result.Skipped++;
+                if (result.Errors.Count < 20)
+                    result.Errors.Add($"{row.Date:yyyy-MM-dd} {row.Description}: {ex.Message}");
+            }
+        }
+
+        return result;
     }
 }

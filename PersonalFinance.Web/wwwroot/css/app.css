@@ -1839,3 +1839,105 @@ select.form-select,
   padding-right: 2.25rem;
 }
 select.form-select::-ms-expand { display: none; }
+
+
+/* ── Import page (mobile-first) ─────────────────────────── */
+.import-panel {
+  width: 100%;
+  max-width: 36rem;
+  margin: 0 auto;
+  border: 1px solid var(--border, #333);
+  border-radius: 0.75rem;
+  background: var(--surface, #141414);
+  padding: 1rem;
+  box-sizing: border-box;
+}
+.import-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.import-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.import-field-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+.import-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted, #9ca3af);
+}
+.pf-select-block {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+.file-drop {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.25rem;
+  padding: 0.75rem 1rem;
+  border: 1px dashed var(--border, #444);
+  border-radius: 0.5rem;
+  background: var(--bg, #0a0a0a);
+  cursor: pointer;
+  text-align: center;
+}
+.file-drop-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.file-drop-text {
+  font-size: 0.875rem;
+  color: var(--text-muted, #9ca3af);
+  pointer-events: none;
+  word-break: break-word;
+}
+.file-drop-name {
+  color: var(--text, #f5f5f5);
+  font-weight: 500;
+}
+.import-submit {
+  width: 100%;
+  min-height: 2.75rem;
+}
+.import-result {
+  border: 1px solid var(--border, #333);
+  border-radius: 0.5rem;
+  background: var(--bg, #0a0a0a);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+.import-errors {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--primary, #e11d48);
+  font-size: 0.8rem;
+  word-break: break-word;
+}
+
+@media (min-width: 640px) {
+  .import-panel {
+    padding: 1.25rem 1.5rem;
+  }
+  .import-field-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .import-submit {
+    width: auto;
+    align-self: flex-start;
+    min-width: 10rem;
+  }
+}

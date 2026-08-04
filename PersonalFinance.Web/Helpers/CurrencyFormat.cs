@@ -23,15 +23,26 @@ public static class CurrencyFormat
 
     /// <summary>
     /// Strips currency symbols, spaces, and thousands separators; parses a decimal.
+    /// Supports accounting negatives: (50.00) → -50.00
     /// </summary>
     public static decimal Sanitize(string? input)
     {
         if (string.IsNullOrWhiteSpace(input))
             return 0m;
 
-        var sb = new StringBuilder(input.Length);
+        var trimmed = input.Trim();
+        var negative = false;
+
+        // Accounting format: (50.00) means -50.00
+        if (trimmed.StartsWith('(') && trimmed.EndsWith(')'))
+        {
+            negative = true;
+            trimmed = trimmed[1..^1].Trim();
+        }
+
+        var sb = new StringBuilder(trimmed.Length);
         var seenDot = false;
-        foreach (var ch in input.Trim())
+        foreach (var ch in trimmed)
         {
             if (char.IsDigit(ch))
             {
@@ -47,17 +58,22 @@ public static class CurrencyFormat
             }
 
             if (ch == '-' && sb.Length == 0)
-                sb.Append('-');
+            {
+                negative = true;
+                continue;
+            }
+
             // skip $ , spaces and other symbols
         }
 
-        return decimal.TryParse(
-            sb.ToString(),
-            NumberStyles.Number,
-            CultureInfo.InvariantCulture,
-            out var value)
-            ? value
-            : 0m;
+        if (!decimal.TryParse(
+                sb.ToString(),
+                NumberStyles.Number,
+                CultureInfo.InvariantCulture,
+                out var value))
+            return 0m;
+
+        return negative ? -Math.Abs(value) : value;
     }
 
     public static bool TrySanitize(string? input, out decimal value)
