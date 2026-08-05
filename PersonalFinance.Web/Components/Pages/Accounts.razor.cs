@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Components;
 using PersonalFinance.Core.Dtos.Accounts;
 using PersonalFinance.Core.Enums;
-using PersonalFinance.Models;
 using PersonalFinance.Web.Models;
+using PersonalFinance.Web.Services;
 
-namespace PersonalFinance.Components.Pages;
+namespace PersonalFinance.Web.Components.Pages;
 
 public partial class Accounts : ComponentBase
 {
@@ -12,7 +12,8 @@ public partial class Accounts : ComponentBase
     private AccountFormModel _formModel = new();
     private bool _isLoading = true;
     private bool _showForm;
-
+    [Inject] private ToastService Toasts { get; set; } = default!;
+    [Inject] private FinanceApiClient Api { get; set; } = default!;
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
     private async Task LoadAsync()
@@ -22,9 +23,10 @@ public partial class Accounts : ComponentBase
         {
             _accounts = await Api.GetAccountsAsync();
         }
-        catch
+        catch (Exception ex)
         {
             _accounts = new();
+            await Toasts.ErrorAsync($"Could not load accounts: {ex.Message}");
         }
         _isLoading = false;
     }
@@ -37,7 +39,7 @@ public partial class Accounts : ComponentBase
 
     private void ShowEditForm(AccountDto account)
     {
-        _formModel = account.ToForm();   // existing FormMappings
+        _formModel = account.ToForm();
         _showForm = true;
     }
 
@@ -55,9 +57,15 @@ public partial class Accounts : ComponentBase
         try
         {
             if (model.Id is null)
+            {
                 await Api.CreateAccountAsync(model.ToCreateRequest());
+                await Toasts.SuccessAsync("Account created.");
+            }
             else
+            {
                 await Api.UpdateAccountAsync(model.Id.Value, model.ToUpdateRequest());
+                await Toasts.SuccessAsync("Account updated.");
+            }
 
             _showForm = false;
             await LoadAsync();
@@ -65,6 +73,7 @@ public partial class Accounts : ComponentBase
         catch (Exception ex)
         {
             model.ErrorMessage = ex.Message;
+            await Toasts.ErrorAsync(ex.Message);
         }
         finally
         {
@@ -74,7 +83,15 @@ public partial class Accounts : ComponentBase
 
     private async Task DeleteAsync(int id)
     {
-        await Api.DeleteAccountAsync(id);
-        await LoadAsync();
+        try
+        {
+            await Api.DeleteAccountAsync(id);
+            await Toasts.SuccessAsync("Account archived.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            await Toasts.ErrorAsync(ex.Message);
+        }
     }
 }

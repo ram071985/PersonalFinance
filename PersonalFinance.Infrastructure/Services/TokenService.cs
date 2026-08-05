@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -13,15 +14,18 @@ public class TokenService
 
     public TokenService(IConfiguration config) => _config = config;
 
-    public (string Token, DateTime ExpiresAt) CreateToken(ApplicationUser user)
+    /// <summary>Short-lived access token (default 1 hour).</summary>
+    public (string Token, DateTime ExpiresAt) CreateAccessToken(ApplicationUser user)
     {
-        var expires = DateTime.UtcNow.AddHours(
-            double.Parse(_config["Jwt:ExpireHours"] ?? "8"));
+        var hours = double.Parse(_config["Jwt:AccessTokenHours"] ?? _config["Jwt:ExpireHours"] ?? "1");
+        var expires = DateTime.UtcNow.AddHours(hours);
 
         var claims = new List<Claim>
         {
+            new(JwtRegisteredClaimNames.Sub, user.Id),
             new(ClaimTypes.NameIdentifier, user.Id),
             new(ClaimTypes.Email, user.Email ?? string.Empty),
+            new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
             new(ClaimTypes.Name, user.DisplayName ?? user.Email ?? string.Empty),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
@@ -41,4 +45,25 @@ public class TokenService
 
         return (new JwtSecurityTokenHandler().WriteToken(token), expires);
     }
+
+    /// <summary>Opaque refresh token (default 14 days). Returns raw token + hash to store.</summary>
+    public (string RawToken, string Hash, DateTime ExpiresAt) CreateRefreshToken()
+    {
+        var days = double.Parse(_config["Jwt:RefreshTokenDays"] ?? "14");
+        var expires = DateTime.UtcNow.AddDays(days);
+        var bytes = RandomNumberGenerator.GetBytes(64);
+        var raw = Convert.ToBase64String(bytes);
+        var hash = HashToken(raw);
+        return (raw, hash, expires);
+    }
+
+    public static string HashToken(string rawToken)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(rawToken));
+        return Convert.ToHexString(hash);
+    }
+
+    // Back-compat alias used by older call sites
+    public (string Token, DateTime ExpiresAt) CreateToken(ApplicationUser user) =>
+        CreateAccessToken(user);
 }

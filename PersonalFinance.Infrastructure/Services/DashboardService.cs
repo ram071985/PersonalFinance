@@ -1,4 +1,3 @@
-using PersonalFinance.Core.Dtos;
 using PersonalFinance.Core.Dtos.Dashboard;
 using PersonalFinance.Core.Interfaces;
 using PersonalFinance.Core.Mappings;
@@ -9,13 +8,16 @@ public class DashboardService : IDashboardService
 {
     private readonly IAccountRepository _accounts;
     private readonly ITransactionRepository _transactions;
+    private readonly IBudgetService _budgets;
 
     public DashboardService(
         IAccountRepository accounts,
-        ITransactionRepository transactions)
+        ITransactionRepository transactions,
+        IBudgetService budgets)
     {
         _accounts = accounts;
         _transactions = transactions;
+        _budgets = budgets;
     }
 
     public async Task<DashboardDto> GetSummaryAsync()
@@ -27,10 +29,14 @@ public class DashboardService : IDashboardService
         var monthlyExpenses = await _transactions.GetMonthlyExpensesAsync(now.Year, now.Month);
         var recent = await _transactions.GetRecentAsync(8);
 
+        var monthBudgets = await _budgets.GetByMonthAsync(now.Year, now.Month);
+        var over = monthBudgets.Where(b => b.IsOverBudget).ToList();
+
         return EntityMappings.ToDashboardDto(
             netWorth,
             monthlyIncome,
             monthlyExpenses,
-            recent);
+            recent,
+            over);
     }
 }

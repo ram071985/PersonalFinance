@@ -1,0 +1,55 @@
+@* Dollar-prefixed amount field — no spinner, formats to 2 decimals on blur *@
+<div class="money-input @CssClass">
+    <span class="money-prefix" aria-hidden="true">$</span>
+    <input type="text"
+           inputmode="decimal"
+           class="money-field"
+           value="@_text"
+           placeholder="0.00"
+           disabled="@Disabled"
+           @oninput="OnInput"
+           @onblur="OnBlur"
+           @attributes="AdditionalAttributes" />
+</div>
+
+@code {
+    [Parameter] public decimal Value { get; set; }
+    [Parameter] public EventCallback<decimal> ValueChanged { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string? CssClass { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string _text = "";
+    private bool _focused;
+
+    protected override void OnParametersSet()
+    {
+        // Don't clobber what the user is typing
+        if (_focused) return;
+        _text = Value <= 0 ? "" : Value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        _focused = true;
+        _text = e.Value?.ToString() ?? "";
+        var parsed = CurrencyFormat.Sanitize(_text);
+        await ValueChanged.InvokeAsync(parsed);
+    }
+
+    private async Task OnBlur(FocusEventArgs _)
+    {
+        _focused = false;
+        var parsed = CurrencyFormat.Sanitize(_text);
+        // Always show two decimal places when there's a value
+        if (parsed > 0)
+            _text = parsed.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+        else if (string.IsNullOrWhiteSpace(_text))
+            _text = "";
+        else
+            _text = parsed.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+
+        await ValueChanged.InvokeAsync(parsed);
+    }
+}

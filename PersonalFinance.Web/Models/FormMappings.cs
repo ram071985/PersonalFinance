@@ -1,12 +1,10 @@
-using PersonalFinance.Core.Dtos;
 using PersonalFinance.Core.Dtos.Accounts;
 using PersonalFinance.Core.Dtos.Budgets;
 using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Dtos.Transactions;
-using PersonalFinance.Models;
-using PersonalFinance.Web.Models;
+using PersonalFinance.Web.Helpers;
 
-namespace PersonalFinance.Models;
+namespace PersonalFinance.Web.Models;
 
 public static class FormMappings
 {
@@ -26,7 +24,7 @@ public static class FormMappings
     {
         Name = form.Name,
         Type = form.Type,
-        Balance = form.Balance,
+        Balance = CurrencyFormat.Sanitize(form.Balance.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         Institution = form.Institution,
         Notes = form.Notes,
         IsActive = form.IsActive
@@ -36,7 +34,7 @@ public static class FormMappings
     {
         Name = form.Name,
         Type = form.Type,
-        Balance = form.Balance,
+        Balance = CurrencyFormat.Sanitize(form.Balance.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         Institution = form.Institution,
         Notes = form.Notes,
         IsActive = form.IsActive
@@ -59,9 +57,9 @@ public static class FormMappings
     public static CreateTransactionRequest ToCreateRequest(this TransactionFormModel form) => new()
     {
         AccountId = form.AccountId,
-        CategoryId = form.CategoryId,
-        TransferToAccountId = form.TransferToAccountId,
-        Amount = form.Amount,
+        CategoryId = form.CategoryId is null or <= 0 ? null : form.CategoryId,
+        TransferToAccountId = form.TransferToAccountId is null or <= 0 ? null : form.TransferToAccountId,
+        Amount = CurrencyFormat.Sanitize(form.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         Type = form.Type,
         Description = form.Description,
         Notes = form.Notes,
@@ -71,9 +69,9 @@ public static class FormMappings
     public static UpdateTransactionRequest ToUpdateRequest(this TransactionFormModel form) => new()
     {
         AccountId = form.AccountId,
-        CategoryId = form.CategoryId,
-        TransferToAccountId = form.TransferToAccountId,
-        Amount = form.Amount,
+        CategoryId = form.CategoryId is null or <= 0 ? null : form.CategoryId,
+        TransferToAccountId = form.TransferToAccountId is null or <= 0 ? null : form.TransferToAccountId,
+        Amount = CurrencyFormat.Sanitize(form.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         Type = form.Type,
         Description = form.Description,
         Notes = form.Notes,
@@ -123,7 +121,7 @@ public static class FormMappings
     public static CreateBudgetRequest ToCreateRequest(this BudgetFormModel form) => new()
     {
         CategoryId = form.CategoryId,
-        Amount = form.Amount,
+        Amount = CurrencyFormat.Sanitize(form.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         Year = form.Year,
         Month = form.Month,
         Notes = form.Notes
@@ -132,7 +130,7 @@ public static class FormMappings
     public static UpdateBudgetRequest ToUpdateRequest(this BudgetFormModel form) => new()
     {
         CategoryId = form.CategoryId,
-        Amount = form.Amount,
+        Amount = CurrencyFormat.Sanitize(form.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         Year = form.Year,
         Month = form.Month,
         Notes = form.Notes

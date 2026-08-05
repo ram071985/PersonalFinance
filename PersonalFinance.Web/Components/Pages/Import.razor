@@ -1,0 +1,164 @@
+@page "/import"
+@attribute [Authorize]
+@using PersonalFinance.Web.Services
+@inject FinanceApiClient Api
+@inject ToastService Toasts
+@rendermode InteractiveServer
+
+<PageTitle>Import</PageTitle>
+
+<div class="page-toolbar">
+    <div>
+        <h1>Import statement</h1>
+        <p class="mt-1 text-sm text-foreground-muted">
+            Upload a bank CSV with Date, Description, and Amount (or Debit/Credit).
+        </p>
+    </div>
+</div>
+
+<div class="import-panel">
+    <div class="import-fields">
+        <div class="import-field">
+            <label class="import-label" for="import-account">Account</label>
+            <select id="import-account" class="pf-select pf-select-block" @bind="_accountId">
+                @if (_accounts.Count == 0)
+                {
+                    <option value="0">No accounts yet</option>
+                }
+                @foreach (var a in _accounts)
+                {
+                    <option value="@a.Id">@a.Name</option>
+                }
+            </select>
+        </div>
+
+        <div class="import-field-row">
+            <div class="import-field">
+                <label class="import-label" for="import-expense-cat">Expense category</label>
+                <select id="import-expense-cat" class="pf-select pf-select-block" @bind="_expenseCategoryId">
+                    <option value="0">Optional</option>
+                    @foreach (var c in _expenseCategories)
+                    {
+                        <option value="@c.Id">@c.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="import-field">
+                <label class="import-label" for="import-income-cat">Income category</label>
+                <select id="import-income-cat" class="pf-select pf-select-block" @bind="_incomeCategoryId">
+                    <option value="0">Optional</option>
+                    @foreach (var c in _incomeCategories)
+                    {
+                        <option value="@c.Id">@c.Name</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="import-field">
+            <label class="import-label">CSV file</label>
+            <label class="file-drop">
+                <InputFile OnChange="OnFile" accept=".csv,text/csv" class="file-drop-input" />
+                <span class="file-drop-text">
+                    @if (_file is null)
+                    {
+                        <span>Tap to choose a .csv file</span>
+                    }
+                    else
+                    {
+                        <span class="file-drop-name">@_file.Name</span>
+                    }
+                </span>
+            </label>
+        </div>
+
+        @if (_result is not null)
+        {
+            <div class="import-result">
+                <p>Imported: <strong>@_result.Imported</strong></p>
+                <p>Skipped: <strong>@_result.Skipped</strong></p>
+                @if (_result.Errors.Count > 0)
+                {
+                    <ul class="import-errors">
+                        @foreach (var e in _result.Errors.Take(10))
+                        {
+                            <li>@e</li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+
+        <button type="button"
+                class="page-action-btn import-submit"
+                disabled="@(_busy || _file is null || _accountId <= 0)"
+                @onclick="UploadAsync">
+            @(_busy ? "Importing…" : "Import CSV")
+        </button>
+    </div>
+</div>
+
+@code {
+    private List<AccountDto> _accounts = new();
+    private List<CategoryDto> _expenseCategories = new();
+    private List<CategoryDto> _incomeCategories = new();
+    private int _accountId;
+    private int _expenseCategoryId;
+    private int _incomeCategoryId;
+    private IBrowserFile? _file;
+    private bool _busy;
+    private BankStatementImportResult? _result;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _accounts = await Api.GetAccountsAsync();
+            var cats = await Api.GetCategoriesAsync();
+            _expenseCategories = cats.Where(c => c.Type == CategoryType.Expense).ToList();
+            _incomeCategories = cats.Where(c => c.Type == CategoryType.Income).ToList();
+            _accountId = _accounts.FirstOrDefault()?.Id ?? 0;
+        }
+        catch (Exception ex)
+        {
+            await Toasts.ErrorAsync(ex.Message);
+        }
+    }
+
+    private void OnFile(InputFileChangeEventArgs e)
+    {
+        _file = e.File;
+        _result = null;
+    }
+
+    private async Task UploadAsync()
+    {
+        if (_file is null || _accountId <= 0) return;
+        _busy = true;
+        _result = null;
+        try
+        {
+            await using var stream = _file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            ms.Position = 0;
+
+            _result = await Api.ImportBankStatementAsync(
+                _accountId,
+                _expenseCategoryId > 0 ? _expenseCategoryId : null,
+                _incomeCategoryId > 0 ? _incomeCategoryId : null,
+                ms,
+                _file.Name);
+
+            await Toasts.SuccessAsync($"Imported {_result.Imported} transaction(s).");
+        }
+        catch (Exception ex)
+        {
+            await Toasts.ErrorAsync(ex.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

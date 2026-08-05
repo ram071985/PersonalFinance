@@ -1,29 +1,30 @@
+@using PersonalFinance.Web.Helpers
 @page "/budgets"
 @attribute [Authorize]
-@rendermode InteractiveAuto
+@rendermode InteractiveServer
 
 <PageTitle>Budgets</PageTitle>
 
-<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-    <h1 class="text-2xl font-bold text-foreground">Budgets</h1>
-    <div class="flex flex-wrap items-center gap-3">
-        <select @bind="_selectedMonth" @bind:after="LoadAsync"
-                class="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground">
-            @for (var m = 1; m <= 12; m++)
-            {
-                <option value="@m">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
-            }
-        </select>
-        <select @bind="_selectedYear" @bind:after="LoadAsync"
-                class="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-foreground">
-            @for (var y = DateTime.Now.Year - 1; y <= DateTime.Now.Year + 1; y++)
-            {
-                <option value="@y">@y</option>
-            }
-        </select>
+<div class="page-toolbar">
+    <h1>Budgets</h1>
+    <div class="page-toolbar-actions">
+        <div class="page-toolbar-filters">
+            <select @bind="_selectedMonth" @bind:after="LoadAsync" class="pf-select" aria-label="Month">
+                @for (var m = 1; m <= 12; m++)
+                {
+                    <option value="@m">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
+                }
+            </select>
+            <select @bind="_selectedYear" @bind:after="LoadAsync" class="pf-select" aria-label="Year">
+                @for (var y = DateTime.Now.Year - 1; y <= DateTime.Now.Year + 1; y++)
+                {
+                    <option value="@y">@y</option>
+                }
+            </select>
+        </div>
         @if (!_isLoading && !_showForm)
         {
-            <button class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover" @onclick="ShowCreateForm">
+            <button type="button" class="page-action-btn" @onclick="ShowCreateForm">
                 Add Budget
             </button>
         }
@@ -32,7 +33,7 @@
 
 @if (_isLoading)
 {
-    <LoadingSpinner Message="Loading budgets…" />
+    <SkeletonRows Rows="4" />
 }
 else
 {
@@ -51,32 +52,40 @@ else
                 <tr>
                     <th class="px-5 py-3">Category</th>
                     <th class="px-5 py-3 text-right">Limit</th>
-                    <th class="hidden px-5 py-3 md:table-cell">Notes</th>
+                    <th class="px-5 py-3 text-right">Spent</th>
+                    <th class="hidden px-5 py-3 md:table-cell">Progress</th>
                     <th class="px-5 py-3 text-right">Actions</th>
                 </tr>
                 </thead>
                 <tbody>
                 @if (_budgets.Count == 0)
                 {
-                    <tr><td colspan="4" class="px-5 py-8 text-center text-foreground-muted">No budgets for this month.</td></tr>
+                    <tr><td colspan="5" class="table-empty px-5 py-8"><EmptyState Icon="📊" Title="No budgets" Message="Set a monthly limit for a category." /></td></tr>
                 }
                 else
                 {
                     @foreach (var b in _budgets)
                     {
+                        var pct = (double)Math.Min(b.PercentUsed, 100m);
+                        var barClass = b.IsOverBudget ? "bg-brand" : "bg-success";
                         <tr class="border-t border-border hover:bg-surface-2">
                             <td class="px-5 py-3.5">
-                                @if (!string.IsNullOrEmpty(b.CategoryName))
+                                <span>@(b.CategoryIcon ?? "") @(!string.IsNullOrEmpty(b.CategoryName) ? b.CategoryName : "—")</span>
+                                @if (b.IsOverBudget)
                                 {
-                                    <span>@b.CategoryIcon @b.CategoryName</span>
-                                }
-                                else
-                                {
-                                    <span>—</span>
+                                    <span class="ml-2 text-xs font-medium text-brand">Over</span>
                                 }
                             </td>
-                            <td class="px-5 py-3.5 text-right font-mono">@b.Amount.ToString("C")</td>
-                            <td class="hidden px-5 py-3.5 text-foreground-muted md:table-cell">@(b.Notes ?? "—")</td>
+                            <td class="px-5 py-3.5 text-right font-mono">@b.Amount.FormatCurrency()</td>
+                            <td class="px-5 py-3.5 text-right font-mono @(b.IsOverBudget ? "text-brand" : "")">@b.Spent.FormatCurrency()</td>
+                            <td class="hidden px-5 py-3.5 md:table-cell">
+                                <div class="flex items-center gap-2">
+                                    <div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
+                                        <div class="h-full @barClass" style="width: @(pct.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                                    </div>
+                                    <span class="w-12 text-right text-xs text-foreground-muted">@b.PercentUsed.ToString("0.#")%</span>
+                                </div>
+                            </td>
                             <td class="px-5 py-3.5 text-right">
                                 <div class="flex flex-col gap-1.5 sm:flex-row sm:justify-end sm:gap-2">
                                     <button class="rounded-md border border-border px-3 py-1.5 text-xs text-foreground-muted hover:bg-surface-2" @onclick="() => ShowEditForm(b)">Edit</button>

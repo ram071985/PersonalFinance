@@ -1,17 +1,29 @@
+@using PersonalFinance.Web.Helpers
 @page "/transactions"
 @attribute [Authorize]
 @using PersonalFinance.Core.Enums
-@rendermode InteractiveAuto
+@rendermode InteractiveServer
 
 <PageTitle>Transactions</PageTitle>
 
-<div class="mb-6 flex items-center justify-between">
-    <h1 class="text-2xl font-bold text-foreground">Transactions</h1>
+<div class="page-toolbar">
+    <h1>Transactions</h1>
     @if (!_isLoading && !_showForm)
     {
-        <button class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover" @onclick="ShowCreateForm">
-            Add Transaction
-        </button>
+        <div class="page-toolbar-actions">
+            <select @bind="_typeFilter" class="pf-select" aria-label="Type filter">
+                <option value="">All types</option>
+                <option value="Income">Income</option>
+                <option value="Expense">Expense</option>
+                <option value="Transfer">Transfers</option>
+            </select>
+            <button type="button" class="page-action-btn-secondary" @onclick="ExportCsvAsync">
+                Export CSV
+            </button>
+            <button type="button" class="page-action-btn" @onclick="ShowCreateForm">
+                Add Transaction
+            </button>
+        </div>
     }
 </div>
 
@@ -23,40 +35,75 @@ else
 {
     @if (_showForm)
     {
-        <TransactionForm Model="_formModel"
+        <TransactionsForm Model="_formModel"
                          Accounts="_accounts"
                          Categories="_categories"
                          OnSave="HandleSaveAsync"
                          OnCancel="HideForm"/>
     }
 
-    <div class="overflow-hidden rounded-xl border border-border bg-surface">
-        <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm">
-                <thead class="bg-surface-2 text-xs uppercase tracking-wider text-foreground-muted">
-                <tr>
-                    <th class="px-5 py-3">Date</th>
-                    <th class="px-5 py-3">Description</th>
-                    <th class="hidden px-5 py-3 md:table-cell">Account</th>
-                    <th class="hidden px-5 py-3 lg:table-cell">Category</th>
-                    <th class="px-5 py-3">Type</th>
-                    <th class="px-5 py-3 text-right">Amount</th>
-                    <th class="px-5 py-3 text-right">Actions</th>
-                </tr>
-                </thead>
-                <tbody>
-                @if (_transactions.Count == 0)
-                {
-                    <tr><td colspan="7" class="px-5 py-8 text-center text-foreground-muted">No transactions yet.</td></tr>
-                }
-                else
-                {
-                    @foreach (var tx in _transactions)
+    @if (!FilteredTransactions.Any())
+    {
+        <div class="rounded-xl border border-border bg-surface p-8">
+            <EmptyState Icon="💸" Title="No transactions" Message="Adjust the filter or add one." />
+        </div>
+    }
+    else
+    {
+        @* Mobile: cards with actions always visible *@
+        <div class="space-y-3 md:hidden">
+            @foreach (var tx in FilteredTransactions)
+            {
+                <div class="rounded-xl border border-border bg-surface p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="truncate font-medium text-foreground">@tx.Description</p>
+                            <p class="mt-0.5 text-xs text-foreground-muted">
+                                @tx.Date.ToString("MMM d, yyyy") · @tx.Type
+                                @if (!string.IsNullOrEmpty(tx.CategoryName))
+                                {
+                                    <span> · @tx.CategoryIcon @tx.CategoryName</span>
+                                }
+                            </p>
+                        </div>
+                        <p class="shrink-0 font-mono text-sm @(tx.Type == TransactionType.Income ? "text-success" : "text-brand")">
+                            @(tx.Type == TransactionType.Income ? "+" : "-")@tx.Amount.FormatCurrency()
+                        </p>
+                    </div>
+                    <div class="mt-3 flex gap-2">
+                        <button type="button"
+                                class="flex-1 rounded-lg border border-border px-3 py-2 text-xs text-foreground-muted hover:bg-surface-2"
+                                @onclick="() => ShowEditForm(tx)">Edit</button>
+                        <button type="button"
+                                class="flex-1 rounded-lg border border-brand px-3 py-2 text-xs text-brand hover:bg-brand hover:text-white"
+                                @onclick="() => DeleteAsync(tx.Id)">Delete</button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* Desktop: table *@
+        <div class="hidden overflow-hidden rounded-xl border border-border bg-surface md:block">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-surface-2 text-xs uppercase tracking-wider text-foreground-muted">
+                    <tr>
+                        <th class="px-5 py-3">Date</th>
+                        <th class="px-5 py-3">Description</th>
+                        <th class="px-5 py-3">Account</th>
+                        <th class="hidden px-5 py-3 lg:table-cell">Category</th>
+                        <th class="px-5 py-3">Type</th>
+                        <th class="px-5 py-3 text-right">Amount</th>
+                        <th class="px-5 py-3 text-right">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var tx in FilteredTransactions)
                     {
                         <tr class="border-t border-border hover:bg-surface-2">
-                            <td class="px-5 py-3.5">@tx.Date.ToString("MMM d, yyyy")</td>
+                            <td class="whitespace-nowrap px-5 py-3.5">@tx.Date.ToString("MMM d, yyyy")</td>
                             <td class="px-5 py-3.5">@tx.Description</td>
-                            <td class="hidden px-5 py-3.5 md:table-cell">@(string.IsNullOrEmpty(tx.AccountName) ? "—" : tx.AccountName)</td>
+                            <td class="px-5 py-3.5">@(string.IsNullOrEmpty(tx.AccountName) ? "—" : tx.AccountName)</td>
                             <td class="hidden px-5 py-3.5 lg:table-cell">
                                 @if (!string.IsNullOrEmpty(tx.CategoryName))
                                 {
@@ -69,19 +116,19 @@ else
                             </td>
                             <td class="px-5 py-3.5">@tx.Type</td>
                             <td class="px-5 py-3.5 text-right font-mono @(tx.Type == TransactionType.Income ? "text-success" : "text-brand")">
-                                @(tx.Type == TransactionType.Income ? "+" : "-")@tx.Amount.ToString("C")
+                                @(tx.Type == TransactionType.Income ? "+" : "-")@tx.Amount.FormatCurrency()
                             </td>
                             <td class="px-5 py-3.5 text-right">
-                                <div class="flex flex-col gap-1.5 sm:flex-row sm:justify-end sm:gap-2">
-                                    <button class="rounded-md border border-border px-3 py-1.5 text-xs text-foreground-muted hover:bg-surface-2" @onclick="() => ShowEditForm(tx)">Edit</button>
-                                    <button class="rounded-md border border-brand px-3 py-1.5 text-xs text-brand hover:bg-brand hover:text-white" @onclick="() => DeleteAsync(tx.Id)">Delete</button>
+                                <div class="flex justify-end gap-2">
+                                    <button type="button" class="rounded-md border border-border px-3 py-1.5 text-xs text-foreground-muted hover:bg-surface-2" @onclick="() => ShowEditForm(tx)">Edit</button>
+                                    <button type="button" class="rounded-md border border-brand px-3 py-1.5 text-xs text-brand hover:bg-brand hover:text-white" @onclick="() => DeleteAsync(tx.Id)">Delete</button>
                                 </div>
                             </td>
                         </tr>
                     }
-                }
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
+    }
 }

@@ -2,10 +2,10 @@ using Microsoft.AspNetCore.Components;
 using PersonalFinance.Core.Dtos.Budgets;
 using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Enums;
-using PersonalFinance.Models;
+using PersonalFinance.Web.Models;
 using PersonalFinance.Web.Services;
 
-namespace PersonalFinance.Components.Pages;
+namespace PersonalFinance.Web.Components.Pages;
 
 public partial class Budgets : ComponentBase
 {

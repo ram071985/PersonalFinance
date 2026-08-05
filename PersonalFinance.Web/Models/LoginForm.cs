@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace PersonalFinance.Models;
+namespace PersonalFinance.Web.Models;
 
 public class LoginFormModel
 {

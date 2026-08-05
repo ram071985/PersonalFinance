@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
 
-namespace PersonalFinance.Services;
+namespace PersonalFinance.Web.Services;
 
 public class ServerAuthenticationStateProvider : AuthenticationStateProvider
 {
@@ -10,25 +10,22 @@ public class ServerAuthenticationStateProvider : AuthenticationStateProvider
     public ServerAuthenticationStateProvider(AuthTokenStore tokenStore) =>
         _tokenStore = tokenStore;
 
-    public override Task<AuthenticationState> GetAuthenticationStateAsync()
+    public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
-        if (!_tokenStore.IsAuthenticated)
-        {
-            var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
-            return Task.FromResult(new AuthenticationState(anonymous));
-        }
+        await _tokenStore.EnsureRestoredAsync();
 
-        var claims = new[]
+        if (!_tokenStore.IsAuthenticated)
+            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+
+        var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, _tokenStore.UserId ?? string.Empty),
-            new Claim(ClaimTypes.Email, _tokenStore.Email ?? string.Empty),
-            new Claim(ClaimTypes.Name, _tokenStore.Email ?? string.Empty)
+            new(ClaimTypes.Name, _tokenStore.Email ?? "user"),
+            new(ClaimTypes.Email, _tokenStore.Email ?? ""),
+            new(ClaimTypes.NameIdentifier, _tokenStore.UserId ?? "")
         };
 
-        // authenticationType must be non-empty or IsAuthenticated stays false
-        var identity = new ClaimsIdentity(claims, authenticationType: "Bearer");
-        var user = new ClaimsPrincipal(identity);
-        return Task.FromResult(new AuthenticationState(user));
+        var identity = new ClaimsIdentity(claims, authenticationType: "jwt");
+        return new AuthenticationState(new ClaimsPrincipal(identity));
     }
 
     public void NotifyAuthChanged() =>

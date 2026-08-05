@@ -1,5 +1,5 @@
+using PersonalFinance.Api.Filters;
 using PersonalFinance.Core.Dtos.Categories;
-using PersonalFinance.Core.Entities;
 using PersonalFinance.Core.Enums;
 using PersonalFinance.Core.Interfaces;
 
@@ -9,7 +9,9 @@ public static class CategoryEndpoints
 {
     public static IEndpointRouteBuilder MapCategoryEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/categories").WithTags("Categories");
+        var group = app.MapGroup("/api/categories")
+            .WithTags("Categories")
+            .RequireAuthorization();
 
         group.MapGet("/", async (ICategoryService service) =>
             Results.Ok(await service.GetAllAsync()));
@@ -27,18 +29,20 @@ public static class CategoryEndpoints
         {
             var created = await service.CreateAsync(category);
             return Results.Created($"/api/categories/{created.Id}", created);
-        });
+        }).Validate<CreateCategoryRequest>();
 
         group.MapPut("/{id:int}", async (int id, UpdateCategoryRequest input, ICategoryService service) =>
         {
-            var updated = await service.UpdateAsync(id, input);
-            return updated ? Results.NoContent() : Results.NotFound();
-        });
+            var result = await service.UpdateAsync(id, input);
+            return result.IsSuccess
+                ? Results.NoContent()
+                : Results.NotFound(new { message = result.Error });
+        }).Validate<UpdateCategoryRequest>();
 
         group.MapDelete("/{id:int}", async (int id, ICategoryService service) =>
         {
-            await service.DeleteAsync(id);
-            return Results.NoContent();
+            var deleted = await service.DeleteAsync(id);
+            return deleted ? Results.NoContent() : Results.NotFound();
         });
 
         return app;

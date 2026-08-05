@@ -14,13 +14,15 @@ public static class EntityMappings
         decimal netWorth,
         decimal monthlyIncome,
         decimal monthlyExpenses,
-        IEnumerable<Transaction> recentTransactions) => new()
+        IEnumerable<Transaction> recentTransactions,
+        IEnumerable<BudgetDto>? overBudget = null) => new()
     {
         NetWorth = netWorth,
         MonthlyIncome = monthlyIncome,
         MonthlyExpenses = monthlyExpenses,
         MonthlyNet = monthlyIncome - monthlyExpenses,
-        RecentTransactions = recentTransactions.ToDtoList()
+        RecentTransactions = recentTransactions.ToDtoList(),
+        OverBudget = overBudget?.ToList() ?? new List<BudgetDto>()
     };
     
     // ── Account ──────────────────────────────────────────────

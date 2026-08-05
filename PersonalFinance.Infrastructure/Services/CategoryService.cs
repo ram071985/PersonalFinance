@@ -1,4 +1,4 @@
-using PersonalFinance.Core.Dtos;
+using PersonalFinance.Core.Common;
 using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Enums;
 using PersonalFinance.Core.Interfaces;
@@ -30,15 +30,16 @@ public class CategoryService : ICategoryService
         return created.ToDto();
     }
 
-    public async Task<bool> UpdateAsync(int id, UpdateCategoryRequest request)
+    public async Task<Result> UpdateAsync(int id, UpdateCategoryRequest request)
     {
         var existing = await _repo.GetByIdAsync(id);
-        if (existing is null) return false;
+        if (existing is null)
+            return Result.Fail("Category not found.");
 
         existing.ApplyUpdate(request);
         await _repo.UpdateAsync(existing);
-        return true;
+        return Result.Ok();
     }
 
-    public Task DeleteAsync(int id) => _repo.DeleteAsync(id);
+    public Task<bool> DeleteAsync(int id) => _repo.DeleteAsync(id);
 }

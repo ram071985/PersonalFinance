@@ -1,4 +1,4 @@
-namespace PersonalFinance.Models;
+namespace PersonalFinance.Web.Models;
 
 public class Account
 {

@@ -11,4 +11,10 @@ public class BudgetDto
     public int Month { get; set; }
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>Sum of expense transactions in this category for the budget month.</summary>
+    public decimal Spent { get; set; }
+    public decimal Remaining => Amount - Spent;
+    public decimal PercentUsed => Amount <= 0 ? 0 : Math.Round(Spent / Amount * 100m, 1);
+    public bool IsOverBudget => Spent > Amount;
 }
