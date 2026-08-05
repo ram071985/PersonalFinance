@@ -9,6 +9,7 @@ public class ApplicationUser : IdentityUser
 
     /// <summary>Opaque refresh token (stored hashed).</summary>
     public string? RefreshTokenHash { get; set; }
+    
     public DateTime? RefreshTokenExpiresAt { get; set; }
 
     /// <summary>When true and PhoneNumber is set, budget alerts also go out as SMS.</summary>
