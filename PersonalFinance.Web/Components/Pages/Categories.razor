@@ -1,25 +1,120 @@
+@using PersonalFinance.Web.Helpers
 @page "/categories"
 @attribute [Authorize]
-@rendermode InteractiveAuto
+@rendermode InteractiveServer
 
 <PageTitle>Categories</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="page-toolbar">
     <h1>Categories</h1>
-    <button class="btn btn-primary">Add Category</button>
+    @if (!_isLoading && !_showForm)
+    {
+        <div class="page-toolbar-actions">
+            <button type="button" class="page-action-btn" @onclick="ShowCreateForm">
+                Add Category
+            </button>
+        </div>
+    }
 </div>
 
-<table class="table table-hover bg-white">
-    <thead>
-    <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th></th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr>
-        <td colspan="3" class="table-empty py-4"><EmptyState Icon="🏷️" Title="No categories" Message="Add categories to organize transactions." /></td>
-    </tr>
-    </tbody>
-</table>
+@if (_isLoading)
+{
+    <LoadingSpinner Message="Loading categories…" />
+}
+else
+{
+    @if (_showForm)
+    {
+        <CategoryForm Model="_formModel"
+                      OnSave="HandleSaveAsync"
+                      OnCancel="HideForm" />
+    }
+
+    @if (_categories.Count == 0)
+    {
+        <div class="rounded-xl border border-border bg-surface p-8">
+            <EmptyState Icon="🏷️" Title="No categories" Message="Add categories to organize transactions." />
+        </div>
+    }
+    else
+    {
+        @* Mobile cards *@
+        <div class="space-y-3 md:hidden">
+            @foreach (var c in _categories)
+            {
+                <div class="rounded-xl border border-border bg-surface p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="truncate font-medium text-foreground">
+                                @(c.Icon ?? "") @c.Name
+                            </p>
+                            <p class="mt-0.5 text-xs text-foreground-muted">@c.Type</p>
+                        </div>
+                        @if (!string.IsNullOrEmpty(c.Color))
+                        {
+                            <span class="h-4 w-4 shrink-0 rounded-full border border-border"
+                                  style="background:@c.Color"></span>
+                        }
+                    </div>
+                    <div class="mt-3 flex gap-2">
+                        <button type="button"
+                                class="flex-1 rounded-lg border border-border px-3 py-2 text-xs text-foreground-muted hover:bg-surface-2"
+                                @onclick="() => ShowEditForm(c)">Edit</button>
+                        <button type="button"
+                                class="flex-1 rounded-lg border border-brand px-3 py-2 text-xs text-brand hover:bg-brand hover:text-white"
+                                @onclick="() => DeleteAsync(c.Id)">Delete</button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* Desktop table *@
+        <div class="hidden overflow-hidden rounded-xl border border-border bg-surface md:block">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-surface-2 text-xs uppercase tracking-wider text-foreground-muted">
+                        <tr>
+                            <th class="px-5 py-3">Name</th>
+                            <th class="px-5 py-3">Type</th>
+                            <th class="px-5 py-3">Color</th>
+                            <th class="px-5 py-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in _categories)
+                        {
+                            <tr class="border-t border-border hover:bg-surface-2">
+                                <td class="px-5 py-3.5 font-medium">@(c.Icon ?? "") @c.Name</td>
+                                <td class="px-5 py-3.5">@c.Type</td>
+                                <td class="px-5 py-3.5">
+                                    @if (!string.IsNullOrEmpty(c.Color))
+                                    {
+                                        <span class="inline-flex items-center gap-2">
+                                            <span class="inline-block h-3 w-3 rounded-full border border-border"
+                                                  style="background:@c.Color"></span>
+                                            <span class="text-foreground-muted">@c.Color</span>
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-foreground-muted">—</span>
+                                    }
+                                </td>
+                                <td class="px-5 py-3.5 text-right">
+                                    <div class="flex justify-end gap-2">
+                                        <button type="button"
+                                                class="rounded-md border border-border px-3 py-1.5 text-xs text-foreground-muted hover:bg-surface-2"
+                                                @onclick="() => ShowEditForm(c)">Edit</button>
+                                        <button type="button"
+                                                class="rounded-md border border-brand px-3 py-1.5 text-xs text-brand hover:bg-brand hover:text-white"
+                                                @onclick="() => DeleteAsync(c.Id)">Delete</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}

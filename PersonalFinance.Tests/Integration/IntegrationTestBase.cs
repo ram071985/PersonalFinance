@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace PersonalFinance.Tests.Integration;
 
@@ -18,7 +19,11 @@ public abstract class IntegrationTestBase
     public async Task OneTimeSetUpAsync()
     {
         Factory = new ApiFactory();
-        Client = Factory.CreateClient();
+        Client = Factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            HandleCookies = true,
+            AllowAutoRedirect = false
+        });
 
         try
         {
@@ -47,12 +52,20 @@ public abstract class IntegrationTestBase
         string email,
         string password = "Password1")
     {
+        var (auth, _) = await RegisterWithResponseAsync(email, password);
+        return auth;
+    }
+
+    protected async Task<(AuthResult Auth, HttpResponseMessage Response)> RegisterWithResponseAsync(
+        string email,
+        string password = "Password1")
+    {
         var response = await Client.PostAsJsonAsync("api/auth/register", new { email, password });
         var body = await response.Content.ReadAsStringAsync();
         Assert.That(response.IsSuccessStatusCode, Is.True,
             $"Register failed ({(int)response.StatusCode}): {body}");
 
-        return ParseAuth(body, email);
+        return (ParseAuth(body, email), response);
     }
 
     protected async Task<AuthResult> LoginAsync(

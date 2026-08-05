@@ -1,4 +1,4 @@
-namespace PersonalFinance.Core.Dtos.Transactions;
+namespace PersonalFinance.Core.Dtos.Notifications;
 
 public class NotificationDto
 {

@@ -9,6 +9,8 @@ namespace PersonalFinance.Api.Endpoints;
 
 public static class AuthEndpoints
 {
+    public const string RefreshCookieName = "pf_refresh";
+
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/auth")
@@ -17,9 +19,11 @@ public static class AuthEndpoints
 
         group.MapPost("/register", async (
             RegisterRequest request,
+            HttpContext http,
             UserManager<ApplicationUser> userManager,
             TokenService tokenService,
-            UserFinanceBootstrap financeBootstrap) =>
+            UserFinanceBootstrap financeBootstrap,
+            IConfiguration config) =>
         {
             var existing = await userManager.FindByEmailAsync(request.Email);
             if (existing is not null)
@@ -42,106 +46,122 @@ public static class AuthEndpoints
             if (!result.Succeeded)
             {
                 var errors = result.Errors
-                    .GroupBy(e => e.Code.Contains("Password") ? "Password" : "Email")
+                    .GroupBy(e => e.Code)
                     .ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray());
                 return Results.ValidationProblem(errors);
             }
 
             await financeBootstrap.InitializeForUserAsync(user.Id);
-            return Results.Ok(await IssueTokensAsync(user, userManager, tokenService));
-        }).Validate<RegisterRequest>();
+            var auth = await IssueTokensAsync(user, userManager, tokenService, http, config, rememberMe: false);
+            return Results.Ok(auth);
+        });
 
         group.MapPost("/login", async (
             LoginRequest request,
+            HttpContext http,
             UserManager<ApplicationUser> userManager,
-            SignInManager<ApplicationUser> signInManager,
             TokenService tokenService,
             UserFinanceBootstrap financeBootstrap,
-            ILoggerFactory loggerFactory) =>
+            ILoggerFactory loggerFactory,
+            IConfiguration config) =>
         {
-            var logger = loggerFactory.CreateLogger("PersonalFinance.Auth");
-
+            var logger = loggerFactory.CreateLogger("Auth");
             var user = await userManager.FindByEmailAsync(request.Email);
-            if (user is null)
+            if (user is null || !await userManager.CheckPasswordAsync(user, request.Password))
             {
-                logger.LogWarning("Login failed — unknown email {Email}", request.Email);
-                return Results.Problem(
-                    title: "Invalid credentials",
-                    detail: "Invalid email or password.",
-                    statusCode: StatusCodes.Status401Unauthorized);
+                logger.LogWarning("Failed login for {Email}", request.Email);
+                return Results.Unauthorized();
             }
 
-            var check = await signInManager.CheckPasswordSignInAsync(
-                user, request.Password, lockoutOnFailure: true);
-
-            if (check.IsLockedOut)
-            {
-                logger.LogWarning("Login locked out for {Email}", request.Email);
-                return Results.Problem(
-                    title: "Account locked",
-                    detail: "Too many failed attempts. Try again later.",
-                    statusCode: StatusCodes.Status423Locked);
-            }
-
-            if (!check.Succeeded)
-            {
-                logger.LogWarning("Login failed — bad password for {Email}", request.Email);
-                return Results.Problem(
-                    title: "Invalid credentials",
-                    detail: "Invalid email or password.",
-                    statusCode: StatusCodes.Status401Unauthorized);
-            }
-
+            // Dedupe/seed safely (IgnoreQueryFilters) — fixes historical duplicate categories
             await financeBootstrap.InitializeForUserAsync(user.Id);
-            logger.LogInformation("Login succeeded for {Email} UserId={UserId}", request.Email, user.Id);
-            return Results.Ok(await IssueTokensAsync(user, userManager, tokenService));
-        }).Validate<LoginRequest>();
+
+            var auth = await IssueTokensAsync(user, userManager, tokenService, http, config, request.RememberMe);
+            return Results.Ok(auth);
+        });
 
         group.MapPost("/refresh", async (
-            RefreshRequest request,
+            RefreshRequest? request,
+            HttpContext http,
             UserManager<ApplicationUser> userManager,
             TokenService tokenService,
-            ILoggerFactory loggerFactory) =>
+            ILoggerFactory loggerFactory,
+            IConfiguration config) =>
         {
-            var logger = loggerFactory.CreateLogger("PersonalFinance.Auth");
-            if (string.IsNullOrWhiteSpace(request.RefreshToken))
-                return Results.Unauthorized();
+            var logger = loggerFactory.CreateLogger("Auth");
 
-            var hash = TokenService.HashToken(request.RefreshToken);
-            var users = userManager.Users.Where(u => u.RefreshTokenHash == hash).Take(1);
-            var user = users.FirstOrDefault();
+            var raw = request?.RefreshToken;
+            if (string.IsNullOrWhiteSpace(raw))
+                raw = http.Request.Cookies[RefreshCookieName];
 
-            if (user is null
-                || user.RefreshTokenExpiresAt is null
-                || user.RefreshTokenExpiresAt < DateTime.UtcNow)
+            if (string.IsNullOrWhiteSpace(raw))
             {
-                logger.LogWarning("Refresh failed — invalid or expired token");
                 return Results.Problem(
                     title: "Invalid refresh token",
                     detail: "Sign in again.",
                     statusCode: StatusCodes.Status401Unauthorized);
             }
 
-            return Results.Ok(await IssueTokensAsync(user, userManager, tokenService));
+            var hash = TokenService.HashToken(raw);
+            var user = userManager.Users.FirstOrDefault(u => u.RefreshTokenHash == hash);
+
+            if (user is null
+                || user.RefreshTokenExpiresAt is null
+                || user.RefreshTokenExpiresAt < DateTime.UtcNow)
+            {
+                logger.LogWarning("Refresh failed — invalid or expired token");
+                DeleteRefreshCookie(http);
+                return Results.Problem(
+                    title: "Invalid refresh token",
+                    detail: "Sign in again.",
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+
+            // Preserve cookie lifetime style: if existing cookie has no max-age we can't know;
+            // use remaining server expiry window — treat as remember if > 1 day left.
+            var remember = user.RefreshTokenExpiresAt > DateTime.UtcNow.AddDays(1);
+            var auth = await IssueTokensAsync(user, userManager, tokenService, http, config, remember);
+            return Results.Ok(auth);
         });
 
         group.MapPost("/logout", async (
+            HttpContext http,
             ICurrentUserService currentUser,
             UserManager<ApplicationUser> userManager) =>
         {
-            if (currentUser.UserId is null)
-                return Results.Unauthorized();
-
-            var user = await userManager.FindByIdAsync(currentUser.UserId);
-            if (user is not null)
+            // Invalidate server-side even if cookie-only (optional user id)
+            if (currentUser.UserId is not null)
             {
-                user.RefreshTokenHash = null;
-                user.RefreshTokenExpiresAt = null;
-                await userManager.UpdateAsync(user);
+                var user = await userManager.FindByIdAsync(currentUser.UserId);
+                if (user is not null)
+                {
+                    user.RefreshTokenHash = null;
+                    user.RefreshTokenExpiresAt = null;
+                    await userManager.UpdateAsync(user);
+                }
+            }
+            else
+            {
+                // Cookie-only logout: clear hash for matching cookie if present
+                var raw = http.Request.Cookies[RefreshCookieName];
+                if (!string.IsNullOrWhiteSpace(raw))
+                {
+                    // TokenService needed — resolve from request services
+                    var tokenService = http.RequestServices.GetRequiredService<TokenService>();
+                    var hash = TokenService.HashToken(raw);
+                    var user = userManager.Users.FirstOrDefault(u => u.RefreshTokenHash == hash);
+                    if (user is not null)
+                    {
+                        user.RefreshTokenHash = null;
+                        user.RefreshTokenExpiresAt = null;
+                        await userManager.UpdateAsync(user);
+                    }
+                }
             }
 
+            DeleteRefreshCookie(http);
             return Results.NoContent();
-        }).RequireAuthorization();
+        });
 
         group.MapGet("/me", async (
             UserManager<ApplicationUser> userManager,
@@ -163,7 +183,10 @@ public static class AuthEndpoints
     private static async Task<AuthResponse> IssueTokensAsync(
         ApplicationUser user,
         UserManager<ApplicationUser> userManager,
-        TokenService tokenService)
+        TokenService tokenService,
+        HttpContext http,
+        IConfiguration config,
+        bool rememberMe)
     {
         var (access, accessExpires) = tokenService.CreateAccessToken(user);
         var (rawRefresh, hash, refreshExpires) = tokenService.CreateRefreshToken();
@@ -172,6 +195,53 @@ public static class AuthEndpoints
         user.RefreshTokenExpiresAt = refreshExpires;
         await userManager.UpdateAsync(user);
 
-        return new AuthResponse(access, rawRefresh, user.Email!, user.Id, accessExpires);
+        SetRefreshCookie(http, rawRefresh, refreshExpires, rememberMe, config);
+
+        // Refresh token is httpOnly cookie only — not returned to JS
+        return new AuthResponse(access, null, user.Email!, user.Id, accessExpires);
+    }
+
+    private static void SetRefreshCookie(
+        HttpContext http,
+        string rawRefresh,
+        DateTime expiresUtc,
+        bool rememberMe,
+        IConfiguration config)
+    {
+        // Only mark Secure on HTTPS. TestServer (Testing) and local http must not set Secure
+        // or the cookie is dropped and refresh-by-cookie fails.
+        var options = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = http.Request.IsHttps,
+            SameSite = SameSiteMode.Lax,
+            Path = "/api/auth",
+            IsEssential = true
+        };
+
+        if (rememberMe)
+            options.Expires = expiresUtc;
+        // else: session cookie (no Expires) — dies when browser closes
+
+        http.Response.Cookies.Append(RefreshCookieName, rawRefresh, options);
+    }
+
+    private static void DeleteRefreshCookie(HttpContext http)
+    {
+        http.Response.Cookies.Delete(RefreshCookieName, new CookieOptions
+        {
+            Path = "/api/auth",
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.Lax
+        });
+        // Also try non-secure delete for local http dev
+        http.Response.Cookies.Delete(RefreshCookieName, new CookieOptions
+        {
+            Path = "/api/auth",
+            HttpOnly = true,
+            Secure = false,
+            SameSite = SameSiteMode.Lax
+        });
     }
 }

@@ -1,46 +1,51 @@
 using System.Text.Json;
+using Microsoft.JSInterop;
 
 namespace PersonalFinance.Web.Services;
 
 public class AuthService
 {
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IJSRuntime _js;
+    private readonly IConfiguration _config;
     private readonly AuthTokenStore _tokenStore;
     private readonly ServerAuthenticationStateProvider _authState;
     private readonly object _refreshLock = new();
     private Task<bool>? _refreshInFlight;
 
     public AuthService(
-        IHttpClientFactory httpClientFactory,
+        IJSRuntime js,
+        IConfiguration config,
         AuthTokenStore tokenStore,
         ServerAuthenticationStateProvider authState)
     {
-        _httpClientFactory = httpClientFactory;
+        _js = js;
+        _config = config;
         _tokenStore = tokenStore;
         _authState = authState;
     }
 
-    private HttpClient CreateClient() =>
-        _httpClientFactory.CreateClient("AuthApi");
+    private string ApiBase =>
+        (_config["ApiBaseUrl"] ?? "https://localhost:7000/").TrimEnd('/');
 
-    public async Task<(bool Success, string? Error)> LoginAsync(string email, string password)
+    public async Task<(bool Success, string? Error)> LoginAsync(string email, string password, bool rememberMe = false)
     {
         try
         {
-            var http = CreateClient();
-            var response = await http.PostAsJsonAsync("api/auth/login", new { email, password });
-            var body = await response.Content.ReadAsStringAsync();
+            var result = await _js.InvokeAsync<AuthFetchResult>(
+                "pfAuth.login", ApiBase, email, password, rememberMe);
 
-            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            if (result.Status == 401)
                 return (false, "Invalid email or password.");
 
-            if (!response.IsSuccessStatusCode)
-                return (false, $"Login failed ({(int)response.StatusCode}): {body}");
+            if (!result.Ok)
+                return (false, $"Login failed ({result.Status}): {result.Text}");
 
-            if (!TryParseAuth(body, out var token, out var refresh, out var userEmail, out var userId, out var expires, out var parseError))
+            if (!TryParseAuth(result.Text, out var token, out var userEmail, out var userId, out var expires, out var parseError))
                 return (false, parseError);
 
-            _tokenStore.Set(token, refresh, userEmail, userId, expires);
+            // Refresh token lives in httpOnly cookie only
+            _tokenStore.SetRememberMe(rememberMe);
+            _tokenStore.Set(token, refreshToken: null, userEmail, userId, expires);
             await _tokenStore.PersistAsync();
             _authState.NotifyAuthChanged();
             return (true, null);
@@ -55,21 +60,21 @@ public class AuthService
     {
         try
         {
-            var http = CreateClient();
-            var response = await http.PostAsJsonAsync("api/auth/register", new { email, password });
-            var body = await response.Content.ReadAsStringAsync();
+            var result = await _js.InvokeAsync<AuthFetchResult>(
+                "pfAuth.register", ApiBase, email, password);
 
-            if (!response.IsSuccessStatusCode)
+            if (!result.Ok)
             {
-                if (TryGetMessage(body, out var msg))
+                if (TryGetMessage(result.Text, out var msg))
                     return (false, msg);
-                return (false, $"Registration failed ({(int)response.StatusCode}): {body}");
+                return (false, $"Registration failed ({result.Status}): {result.Text}");
             }
 
-            if (!TryParseAuth(body, out var token, out var refresh, out var userEmail, out var userId, out var expires, out var parseError))
+            if (!TryParseAuth(result.Text, out var token, out var userEmail, out var userId, out var expires, out var parseError))
                 return (false, parseError);
 
-            _tokenStore.Set(token, refresh, userEmail, userId, expires);
+            _tokenStore.SetRememberMe(false);
+            _tokenStore.Set(token, refreshToken: null, userEmail, userId, expires);
             await _tokenStore.PersistAsync();
             _authState.NotifyAuthChanged();
             return (true, null);
@@ -80,7 +85,7 @@ public class AuthService
         }
     }
 
-    /// <summary>Uses stored refresh token to get a new access token. Returns false if re-login required.</summary>
+    /// <summary>Uses httpOnly refresh cookie via browser fetch. Returns false if re-login required.</summary>
     public Task<bool> TryRefreshAsync()
     {
         lock (_refreshLock)
@@ -95,30 +100,25 @@ public class AuthService
         try
         {
             await _tokenStore.EnsureRestoredAsync();
-            if (string.IsNullOrWhiteSpace(_tokenStore.RefreshToken))
-                return false;
 
-            var http = CreateClient();
-            var response = await http.PostAsJsonAsync(
-                "api/auth/refresh",
-                new { refreshToken = _tokenStore.RefreshToken });
-
-            var body = await response.Content.ReadAsStringAsync();
-            if (!response.IsSuccessStatusCode)
+            var result = await _js.InvokeAsync<AuthFetchResult>("pfAuth.refresh", ApiBase);
+            if (!result.Ok)
             {
+                _tokenStore.Clear();
                 await _tokenStore.ClearPersistedAsync();
                 _authState.NotifyAuthChanged();
                 return false;
             }
 
-            if (!TryParseAuth(body, out var token, out var refresh, out var email, out var userId, out var expires, out _))
+            if (!TryParseAuth(result.Text, out var token, out var email, out var userId, out var expires, out _))
             {
+                _tokenStore.Clear();
                 await _tokenStore.ClearPersistedAsync();
                 _authState.NotifyAuthChanged();
                 return false;
             }
 
-            _tokenStore.Set(token, refresh ?? _tokenStore.RefreshToken, email, userId, expires);
+            _tokenStore.Set(token, refreshToken: null, email, userId, expires);
             await _tokenStore.PersistAsync();
             _authState.NotifyAuthChanged();
             return true;
@@ -137,17 +137,12 @@ public class AuthService
     {
         try
         {
-            if (!string.IsNullOrWhiteSpace(_tokenStore.AccessToken))
-            {
-                var http = CreateClient();
-                using var req = new HttpRequestMessage(HttpMethod.Post, "api/auth/logout");
-                req.Headers.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _tokenStore.AccessToken);
-                await http.SendAsync(req);
-            }
+            await _js.InvokeAsync<AuthFetchResult>(
+                "pfAuth.logout", ApiBase, _tokenStore.AccessToken);
         }
         catch { /* ignore */ }
 
+        _tokenStore.Clear();
         await _tokenStore.ClearPersistedAsync();
         _authState.NotifyAuthChanged();
     }
@@ -155,18 +150,16 @@ public class AuthService
     private static bool TryParseAuth(
         string body,
         out string token,
-        out string? refreshToken,
         out string email,
         out string userId,
         out DateTime expiresAt,
-        out string? error)
+        out string error)
     {
         token = "";
-        refreshToken = null;
         email = "";
         userId = "";
         expiresAt = DateTime.UtcNow.AddHours(1);
-        error = null;
+        error = "";
 
         try
         {
@@ -174,7 +167,6 @@ public class AuthService
             var root = doc.RootElement;
 
             token = ReadString(root, "token", "Token", "accessToken", "access_token") ?? "";
-            refreshToken = ReadString(root, "refreshToken", "RefreshToken", "refresh_token");
             email = ReadString(root, "email", "Email") ?? "";
             userId = ReadString(root, "userId", "UserId", "id", "Id") ?? "";
 
@@ -239,5 +231,13 @@ public class AuthService
             }
         }
         return false;
+    }
+
+    /// <summary>Shape returned from pfAuth.* JS helpers.</summary>
+    private sealed class AuthFetchResult
+    {
+        public int Status { get; set; }
+        public bool Ok { get; set; }
+        public string Text { get; set; } = "";
     }
 }

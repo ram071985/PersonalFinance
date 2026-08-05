@@ -1,3 +1,6 @@
+@using PersonalFinance.Core.Dtos.Accounts
+@using PersonalFinance.Core.Dtos.Categories
+@using PersonalFinance.Core.Enums
 @using PersonalFinance.Web.Models
 
 <div class="mb-6 rounded-xl border border-border bg-surface p-6">
@@ -15,18 +18,19 @@
             </div>
             <div>
                 <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Type</label>
-                <InputSelect @bind-Value="Model.Type"
-                             class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
+                <select class="pf-select pf-select-block"
+                        value="@((int)Model.Type)"
+                        @onchange="OnTypeChanged">
                     @foreach (var t in EnumOptions.TransactionTypes)
                     {
                         <option value="@t.Value">@t.Name</option>
                     }
-                </InputSelect>
+                </select>
             </div>
             <div>
                 <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Account</label>
                 <InputSelect @bind-Value="Model.AccountId"
-                             class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
+                             class="pf-select pf-select-block">
                     <option value="0">Select account…</option>
                     @foreach (var a in Accounts)
                     {
@@ -35,35 +39,39 @@
                 </InputSelect>
                 <ValidationMessage For="() => Model.AccountId" class="field-error" />
             </div>
-            <div>
-                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Category</label>
-                <InputSelect @bind-Value="Model.CategoryId"
-                             class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
-                    <option value="">— None —</option>
-                    @foreach (var c in Categories)
-                    {
-                        <option value="@c.Id">@c.Icon @c.Name</option>
-                    }
-                </InputSelect>
-            </div>
+            @if (Model.Type is TransactionType.Income or TransactionType.Expense)
+            {
+                <div>
+                    <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Category</label>
+                    <select class="pf-select pf-select-block"
+                            value="@(Model.CategoryId?.ToString() ?? "")"
+                            @onchange="OnCategoryChanged">
+                        <option value="">Select category…</option>
+                        @foreach (var c in FilteredCategories)
+                        {
+                            <option value="@c.Id">@c.Icon @c.Name</option>
+                        }
+                    </select>
+                </div>
+            }
             <div>
                 <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Amount</label>
-                <InputNumber @bind-Value="Model.Amount" step="0.01"
-                             class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
+                <MoneyInput @bind-Value="Model.Amount" />
                 <ValidationMessage For="() => Model.Amount" class="field-error" />
             </div>
             @if (Model.Type == TransactionType.Transfer)
             {
                 <div>
                     <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Transfer To</label>
-                    <InputSelect @bind-Value="Model.TransferToAccountId"
-                                 class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
+                    <select class="pf-select pf-select-block"
+                            value="@(Model.TransferToAccountId?.ToString() ?? "")"
+                            @onchange="OnTransferToChanged">
                         <option value="">Select account…</option>
                         @foreach (var a in Accounts.Where(x => x.Id != Model.AccountId))
                         {
                             <option value="@a.Id">@a.Name</option>
                         }
-                    </InputSelect>
+                    </select>
                 </div>
             }
             <div class="sm:col-span-2">
@@ -85,10 +93,10 @@
         }
 
         <div class="mt-6 flex gap-3">
-            <button type="submit" class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-60" disabled="@Model.IsSaving">
+            <button type="submit" class="page-action-btn" disabled="@Model.IsSaving">
                 @(Model.IsSaving ? "Saving…" : "Save")
             </button>
-            <button type="button" class="rounded-lg border border-border px-4 py-2 text-sm text-foreground-muted hover:bg-surface-2" @onclick="OnCancel" disabled="@Model.IsSaving">
+            <button type="button" class="page-action-btn-secondary" @onclick="OnCancel" disabled="@Model.IsSaving">
                 Cancel
             </button>
         </div>
@@ -97,10 +105,76 @@
 
 @code {
     [Parameter, EditorRequired] public TransactionFormModel Model { get; set; } = new();
-    [Parameter] public List<PersonalFinance.Core.Dtos.Accounts.AccountDto> Accounts { get; set; } = new();
-    [Parameter] public List<PersonalFinance.Core.Dtos.Categories.CategoryDto> Categories { get; set; } = new();
+    [Parameter] public List<AccountDto> Accounts { get; set; } = new();
+    [Parameter] public List<CategoryDto> Categories { get; set; } = new();
     [Parameter] public EventCallback<TransactionFormModel> OnSave { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 
-    private async Task HandleValidSubmit() => await OnSave.InvokeAsync(Model);
+    private IEnumerable<CategoryDto> FilteredCategories
+    {
+        get
+        {
+            var source = Model.Type switch
+            {
+                TransactionType.Income => Categories.Where(c => c.Type == CategoryType.Income),
+                TransactionType.Expense => Categories.Where(c => c.Type == CategoryType.Expense),
+                _ => Enumerable.Empty<CategoryDto>()
+            };
+            // One row per name (guards against historical seed duplicates)
+            return source
+                .GroupBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.OrderBy(c => c.Id).First())
+                .OrderBy(c => c.Name);
+        }
+    }
+
+    private void OnTypeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var v) && Enum.IsDefined(typeof(TransactionType), v))
+            Model.Type = (TransactionType)v;
+        Model.CategoryId = null;
+        Model.TransferToAccountId = null;
+    }
+
+    private void OnCategoryChanged(ChangeEventArgs e)
+    {
+        var raw = e.Value?.ToString();
+        Model.CategoryId = int.TryParse(raw, out var id) && id > 0 ? id : null;
+    }
+
+    private void OnTransferToChanged(ChangeEventArgs e)
+    {
+        var raw = e.Value?.ToString();
+        Model.TransferToAccountId = int.TryParse(raw, out var id) && id > 0 ? id : null;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (Model.CategoryId is <= 0) Model.CategoryId = null;
+        if (Model.TransferToAccountId is <= 0) Model.TransferToAccountId = null;
+
+        if (Model.Type is TransactionType.Income or TransactionType.Expense)
+        {
+            if (Model.CategoryId is null)
+            {
+                Model.ErrorMessage = "Category is required for income and expense.";
+                return;
+            }
+        }
+
+        if (Model.Type == TransactionType.Transfer && Model.TransferToAccountId is null)
+        {
+            Model.ErrorMessage = "Select a destination account for the transfer.";
+            return;
+        }
+
+        if (Model.Amount <= 0)
+        {
+            Model.ErrorMessage = "Amount must be greater than zero.";
+            return;
+        }
+
+        Model.ErrorMessage = null;
+        await OnSave.InvokeAsync(Model);
+    }
 }

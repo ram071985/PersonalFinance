@@ -1,28 +1,32 @@
+@using PersonalFinance.Core.Dtos.Dashboard
 @using PersonalFinance.Web.Helpers
 @inject IJSRuntime Js
 @implements IAsyncDisposable
 
-<div class="rounded-xl border border-border bg-surface p-5">
+<div class="mb-8">
     <h2 class="mb-4 text-lg font-semibold text-foreground">Spending by category</h2>
-    @if (Items is null || Items.Count == 0)
-    {
-        <EmptyState Icon="📊" Title="No expenses this month" Message="Category spend will show here." />
-    }
-    else
-    {
-        <div class="chart-wrap" style="position:relative;height:220px;width:100%;">
-            <canvas id="@_canvasId"></canvas>
-        </div>
-        <ul class="mt-4 space-y-1.5 text-sm">
-            @foreach (var item in Items)
-            {
-                <li class="flex items-center justify-between gap-2">
-                    <span class="text-foreground-muted truncate">@(item.CategoryIcon ?? "") @item.CategoryName</span>
-                    <span class="font-mono text-foreground">@item.Amount.FormatCurrency()</span>
-                </li>
-            }
-        </ul>
-    }
+
+    <div class="rounded-xl border border-border bg-surface p-5">
+        @if (Items is null || Items.Count == 0)
+        {
+            <EmptyState Icon="📊" Title="No expenses this month" Message="Category spend will show here." />
+        }
+        else
+        {
+            <div class="chart-wrap" style="position:relative;height:220px;width:100%;">
+                <canvas id="@_canvasId"></canvas>
+            </div>
+            <ul class="mt-4 space-y-1.5 text-sm">
+                @foreach (var item in Items)
+                {
+                    <li class="flex items-center justify-between gap-2">
+                        <span class="text-foreground-muted truncate">@(item.CategoryIcon ?? "") @item.CategoryName</span>
+                        <span class="font-mono text-foreground">@item.Amount.FormatCurrency()</span>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
 </div>
 
 @code {

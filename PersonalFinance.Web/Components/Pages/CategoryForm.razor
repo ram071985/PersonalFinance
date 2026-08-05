@@ -1,4 +1,4 @@
-@using PersonalFinance.Web.Models
+@using PersonalFinance.Core.Enums
 @using PersonalFinance.Web.Models
 
 <div class="mb-6 rounded-xl border border-border bg-surface p-6">
@@ -17,23 +17,50 @@
             </div>
             <div>
                 <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Type</label>
-                <InputSelect @bind-Value="Model.Type"
-                             class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20">
+                <select class="pf-select pf-select-block"
+                        value="@((int)Model.Type)"
+                        @onchange="OnTypeChanged">
                     @foreach (var t in EnumOptions.CategoryTypes)
                     {
                         <option value="@t.Value">@t.Name</option>
                     }
-                </InputSelect>
+                </select>
             </div>
-            <div>
-                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Icon (emoji)</label>
-                <InputText @bind-Value="Model.Icon" placeholder="🛒"
-                           class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
+
+            <div class="sm:col-span-2">
+                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Icon</label>
+                <div class="mb-2 flex items-center gap-2">
+                    <span class="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-bg text-xl"
+                          aria-hidden="true">@(string.IsNullOrEmpty(Model.Icon) ? "🏷️" : Model.Icon)</span>
+                    <span class="text-xs text-foreground-muted">Tap an icon below</span>
+                </div>
+                <div class="icon-picker" role="listbox" aria-label="Category icons">
+                    @foreach (var icon in Icons)
+                    {
+                        <button type="button"
+                                role="option"
+                                aria-selected="@(Model.Icon == icon)"
+                                class="icon-picker-btn @(Model.Icon == icon ? "icon-picker-btn-active" : "")"
+                                @onclick="() => SelectIcon(icon)">
+                            @icon
+                        </button>
+                    }
+                </div>
             </div>
-            <div>
-                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Color (hex)</label>
-                <InputText @bind-Value="Model.Color" placeholder="#ef4444"
-                           class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 text-foreground focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
+
+            <div class="sm:col-span-2">
+                <label class="mb-1.5 block text-sm font-medium text-foreground-muted">Color</label>
+                <div class="color-picker">
+                    @foreach (var color in Colors)
+                    {
+                        <button type="button"
+                                class="color-picker-btn @(string.Equals(Model.Color, color, StringComparison.OrdinalIgnoreCase) ? "color-picker-btn-active" : "")"
+                                style="background:@color"
+                                title="@color"
+                                @onclick="() => SelectColor(color)">
+                        </button>
+                    }
+                </div>
             </div>
         </div>
 
@@ -43,10 +70,10 @@
         }
 
         <div class="mt-6 flex gap-3">
-            <button type="submit" class="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-60" disabled="@Model.IsSaving">
+            <button type="submit" class="page-action-btn" disabled="@Model.IsSaving">
                 @(Model.IsSaving ? "Saving…" : "Save")
             </button>
-            <button type="button" class="rounded-lg border border-border px-4 py-2 text-sm text-foreground-muted hover:bg-surface-2" @onclick="OnCancel" disabled="@Model.IsSaving">
+            <button type="button" class="page-action-btn-secondary" @onclick="OnCancel" disabled="@Model.IsSaving">
                 Cancel
             </button>
         </div>
@@ -57,6 +84,40 @@
     [Parameter, EditorRequired] public CategoryFormModel Model { get; set; } = new();
     [Parameter] public EventCallback<CategoryFormModel> OnSave { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
+
+    private static readonly string[] Icons =
+    [
+        "🛒", "🏠", "💡", "🍽️", "🚗", "🎬", "🏥", "🛍️",
+        "💵", "💻", "📈", "🎁", "✈️", "🏋️", "📚", "☕",
+        "📱", "🧾", "🐾", "🎵", "🎮", "🧹", "🔧", "👶",
+        "🎓", "🚌", "⛽", "🍕", "👕", "💊", "🏦", "🏷️",
+        "🎸", "🎹", "🥁", "🎻", "🎺", "🎷", "🎤", "🎧"
+    ];
+
+    private static readonly string[] Colors =
+    [
+        "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6",
+        "#3b82f6", "#8b5cf6", "#ec4899", "#f43f5e", "#64748b",
+        "#e11d48", "#16a34a", "#0ea5e9", "#a855f7", "#78716c"
+    ];
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrWhiteSpace(Model.Icon))
+            Model.Icon = "🏷️";
+        if (string.IsNullOrWhiteSpace(Model.Color))
+            Model.Color = "#ef4444";
+    }
+
+    private void SelectIcon(string icon) => Model.Icon = icon;
+
+    private void SelectColor(string color) => Model.Color = color;
+
+    private void OnTypeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var v) && Enum.IsDefined(typeof(CategoryType), v))
+            Model.Type = (CategoryType)v;
+    }
 
     private async Task HandleValidSubmit() => await OnSave.InvokeAsync(Model);
 }

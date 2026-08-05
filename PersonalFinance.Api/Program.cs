@@ -140,12 +140,29 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("BlazorClient", policy =>
     {
+        // Credentials (httpOnly refresh cookie) require explicit origins — never AllowAnyOrigin.
         if (corsOrigins.Length > 0)
-            policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod();
+        {
+            policy.WithOrigins(corsOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        }
         else if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing"))
-            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        {
+            policy.WithOrigins(
+                    "https://localhost:7150",
+                    "http://localhost:5150",
+                    "https://localhost:7001",
+                    "http://localhost:5001")
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        }
         else
+        {
             policy.WithOrigins().AllowAnyHeader().AllowAnyMethod(); // deny all if misconfigured
+        }
     });
 });
 
@@ -213,4 +230,4 @@ app.MapNotificationEndpoints();
 
 app.Run();
 
-
+public partial class Program { }

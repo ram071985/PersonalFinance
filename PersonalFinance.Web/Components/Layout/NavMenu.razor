@@ -1,45 +1,73 @@
-﻿<nav class="flex flex-col gap-1 px-2 py-3">
-    <NavLink href="" Match="NavLinkMatch.All" @onclick="OnNavigate"
-             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
-        <span class="bi bi-speedometer2"></span> Dashboard
-    </NavLink>
+﻿@using PersonalFinance.Web.Services
+@inject AuthService Auth
+@inject NavigationManager Navigation
+@inject AuthTokenStore TokenStore
 
-    <NavLink href="accounts" @onclick="OnNavigate"
-             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
-        <span class="bi bi-wallet2"></span> Accounts
-    </NavLink>
+<nav class="flex h-full flex-col gap-1 px-2 py-3">
+    <div class="flex flex-1 flex-col gap-1">
+        <NavLink href="" Match="NavLinkMatch.All" @onclick="OnNavigate"
+                 class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
+            <span class="bi bi-speedometer2"></span> Dashboard
+        </NavLink>
 
-    <NavLink href="transactions" @onclick="OnNavigate"
-             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
-        <span class="bi bi-arrow-left-right"></span> Transactions
-    </NavLink>
+        <NavLink href="accounts" @onclick="OnNavigate"
+                 class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
+            <span class="bi bi-wallet2"></span> Accounts
+        </NavLink>
 
-    <NavLink href="import" @onclick="OnNavigate"
-             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
-        <span class="bi bi-upload"></span> Import
-    </NavLink>
+        <NavLink href="transactions" @onclick="OnNavigate"
+                 class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
+            <span class="bi bi-arrow-left-right"></span> Transactions
+        </NavLink>
 
-    <NavLink href="categories" @onclick="OnNavigate"
-             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
-        <span class="bi bi-tags"></span> Categories
-    </NavLink>
+        <NavLink href="import" @onclick="OnNavigate"
+                 class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
+            <span class="bi bi-upload"></span> Import
+        </NavLink>
 
-    <NavLink href="budgets" @onclick="OnNavigate"
-             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
-        <span class="bi bi-calendar-check"></span> Budgets
-    </NavLink>
+        <NavLink href="categories" @onclick="OnNavigate"
+                 class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
+            <span class="bi bi-tags"></span> Categories
+        </NavLink>
 
-    <NavLink href="recurring" @onclick="OnNavigate"
-             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
-        <span class="bi bi-arrow-repeat"></span> Recurring
-    </NavLink>
+        <NavLink href="budgets" @onclick="OnNavigate"
+                 class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
+            <span class="bi bi-calendar-check"></span> Budgets
+        </NavLink>
 
-    <NavLink href="notifications" @onclick="OnNavigate"
-             class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
-        <span class="bi bi-bell"></span> Notifications
-    </NavLink>
+        <NavLink href="recurring" @onclick="OnNavigate"
+                 class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
+            <span class="bi bi-arrow-repeat"></span> Recurring
+        </NavLink>
+
+        <NavLink href="notifications" @onclick="OnNavigate"
+                 class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted no-underline hover:bg-surface-2 hover:text-foreground">
+            <span class="bi bi-bell"></span> Notifications
+        </NavLink>
+    </div>
+
+    <div class="mt-auto border-t border-border pt-2">
+        @if (!string.IsNullOrWhiteSpace(TokenStore.Email))
+        {
+            <p class="truncate px-4 py-1 text-xs text-foreground-muted" title="@TokenStore.Email">
+                @TokenStore.Email
+            </p>
+        }
+        <button type="button"
+                class="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-foreground-muted hover:bg-surface-2 hover:text-brand"
+                @onclick="LogoutAsync">
+            <span class="bi bi-box-arrow-right"></span> Log out
+        </button>
+    </div>
 </nav>
 
 @code {
     [Parameter] public EventCallback OnNavigate { get; set; }
+
+    private async Task LogoutAsync()
+    {
+        await OnNavigate.InvokeAsync();
+        await Auth.LogoutAsync();
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
 }

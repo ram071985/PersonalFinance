@@ -1,8 +1,10 @@
 name: Deploy Web
 
+# Azure deploy only when code is pushed to main
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
     paths:
       - 'PersonalFinance.Web/**'
       - 'PersonalFinance.Core/**'
@@ -11,7 +13,7 @@ on:
 env:
   AZURE_WEBAPP_NAME: personalfinance-web
   DOTNET_VERSION: '10.0.x'
-  PROJECT_PATH: './PersonalFinance.Web/PersonalFinance.csproj'
+  PROJECT_PATH: './PersonalFinance.Web/PersonalFinance.Web.csproj'
 
 jobs:
   build-and-deploy:

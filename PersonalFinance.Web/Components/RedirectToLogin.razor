@@ -16,20 +16,8 @@
 
         await TokenStore.EnsureRestoredAsync();
 
-        if (!TokenStore.IsAuthenticated
-            && !string.IsNullOrWhiteSpace(TokenStore.RefreshToken))
-        {
-            await Auth.TryRefreshAsync();
-        }
-
         if (!TokenStore.IsAuthenticated)
-        {
-            await Task.Delay(50);
-            await TokenStore.EnsureRestoredAsync();
-            if (!TokenStore.IsAuthenticated
-                && !string.IsNullOrWhiteSpace(TokenStore.RefreshToken))
-                await Auth.TryRefreshAsync();
-        }
+            await Auth.TryRefreshAsync();
 
         if (TokenStore.IsAuthenticated)
         {

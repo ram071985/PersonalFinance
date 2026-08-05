@@ -57,8 +57,8 @@ public static class FormMappings
     public static CreateTransactionRequest ToCreateRequest(this TransactionFormModel form) => new()
     {
         AccountId = form.AccountId,
-        CategoryId = form.CategoryId,
-        TransferToAccountId = form.TransferToAccountId,
+        CategoryId = form.CategoryId is null or <= 0 ? null : form.CategoryId,
+        TransferToAccountId = form.TransferToAccountId is null or <= 0 ? null : form.TransferToAccountId,
         Amount = CurrencyFormat.Sanitize(form.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         Type = form.Type,
         Description = form.Description,
@@ -69,8 +69,8 @@ public static class FormMappings
     public static UpdateTransactionRequest ToUpdateRequest(this TransactionFormModel form) => new()
     {
         AccountId = form.AccountId,
-        CategoryId = form.CategoryId,
-        TransferToAccountId = form.TransferToAccountId,
+        CategoryId = form.CategoryId is null or <= 0 ? null : form.CategoryId,
+        TransferToAccountId = form.TransferToAccountId is null or <= 0 ? null : form.TransferToAccountId,
         Amount = CurrencyFormat.Sanitize(form.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         Type = form.Type,
         Description = form.Description,

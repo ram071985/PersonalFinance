@@ -1,6 +1,9 @@
 @using PersonalFinance.Web.Helpers
 @page "/"
 @attribute [Authorize]
+@using PersonalFinance.Core.Dtos
+@using PersonalFinance.Core.Dtos.Dashboard
+@using PersonalFinance.Core.Enums
 @using PersonalFinance.Web.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @inject FinanceApiClient Api
@@ -77,9 +80,7 @@ else
         </div>
     }
 
-    <div class="mb-8">
-        <CategorySpendChart Items="_dashboard.CategorySpend" />
-    </div>
+    <CategorySpendChart Items="_dashboard.CategorySpend" />
 
     <h2 class="mb-4 text-lg font-semibold text-foreground">Recent Transactions</h2>
     <div class="overflow-hidden rounded-xl border border-border bg-surface">

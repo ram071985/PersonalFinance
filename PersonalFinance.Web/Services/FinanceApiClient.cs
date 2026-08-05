@@ -1,13 +1,14 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using PersonalFinance.Web.Services;
 using PersonalFinance.Core.Dtos.Accounts;
 using PersonalFinance.Core.Dtos.Budgets;
 using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Dtos.Dashboard;
-using PersonalFinance.Core.Dtos.Recurring;
 using PersonalFinance.Core.Dtos.Transactions;
+using PersonalFinance.Core.Dtos.Recurring;
+using PersonalFinance.Core.Dtos.Notifications;
 using PersonalFinance.Core.Enums;
+using PersonalFinance.Web.Services;
 
 namespace PersonalFinance.Web.Services;
 
@@ -60,9 +61,9 @@ public class FinanceApiClient
         ApplyBearer(request);
         var response = await _http.SendAsync(request);
 
-        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized
-            && !string.IsNullOrWhiteSpace(_tokens.RefreshToken))
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
+            // Refresh token is httpOnly cookie — browser fetch via AuthService
             var refreshed = await _auth.TryRefreshAsync();
             if (refreshed)
             {

@@ -1,5 +1,6 @@
 @using PersonalFinance.Web.Services
 @inject AuthTokenStore TokenStore
+@inject AuthService Auth
 @inject ServerAuthenticationStateProvider AuthState
 
 @code {
@@ -8,6 +9,13 @@
         if (!firstRender) return;
 
         await TokenStore.EnsureRestoredAsync();
+
+        if (!TokenStore.IsAuthenticated)
+        {
+            // httpOnly refresh cookie may still be valid (especially Remember me)
+            await Auth.TryRefreshAsync();
+        }
+
         if (TokenStore.IsAuthenticated)
             AuthState.NotifyAuthChanged();
     }

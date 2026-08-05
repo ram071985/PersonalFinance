@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PersonalFinance.Core.Dtos.Notifications;
 using PersonalFinance.Core.Dtos.Transactions;
 using PersonalFinance.Core.Entities;
 using PersonalFinance.Core.Interfaces;

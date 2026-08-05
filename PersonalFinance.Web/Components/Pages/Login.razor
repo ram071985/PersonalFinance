@@ -41,6 +41,13 @@
             <ValidationMessage For="() => _model.Password" class="text-danger" style="font-size:0.8rem;margin-top:0.25rem;" />
         </div>
 
+        <div class="form-group remember-row">
+            <label class="remember-label" for="remember-me">
+                <InputCheckbox id="remember-me" @bind-Value="_model.RememberMe" class="remember-check" />
+                <span>Remember me</span>
+            </label>
+        </div>
+
         <button type="submit" class="btn btn-primary btn-block" disabled="@_isSubmitting">
             @(_isSubmitting ? "Signing in…" : "Sign in")
         </button>
@@ -89,7 +96,7 @@
         _isSubmitting = true;
         try
         {
-            var (success, error) = await Auth.LoginAsync(_model.Email.Trim(), _model.Password);
+            var (success, error) = await Auth.LoginAsync(_model.Email.Trim(), _model.Password, _model.RememberMe);
             if (!success)
             {
                 _errorMessage = error ?? "Login failed.";

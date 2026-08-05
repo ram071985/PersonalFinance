@@ -51,4 +51,3 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
       - run: dotnet test --filter FullyQualifiedName~Integration
-
