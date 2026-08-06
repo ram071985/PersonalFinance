@@ -12,6 +12,9 @@ public class Account
     public string? Institution { get; set; }
     public string? Notes { get; set; }
     public bool IsActive { get; set; } = true;
+    /// <summary>Plaid account_id when linked.</summary>
+    public string? ExternalId { get; set; }
+    public int? PlaidItemId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 

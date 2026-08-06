@@ -18,6 +18,7 @@ using PersonalFinance.Infrastructure.Repositories;
 using PersonalFinance.Infrastructure.Services;
 using PersonalFinance.Infrastructure.Email;
 using PersonalFinance.Infrastructure.Sms;
+using PersonalFinance.Infrastructure.Plaid;
 using PersonalFinance.Api.Workers;
 using Azure.Identity;
 
@@ -100,6 +101,13 @@ builder.Services.AddRateLimiter(options =>
         limiter.PermitLimit = 20;
         limiter.QueueLimit = 0;
     });
+    // Link / exchange abuse protection (Plaid security checklist)
+    options.AddFixedWindowLimiter("plaid", limiter =>
+    {
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.PermitLimit = 10;
+        limiter.QueueLimit = 0;
+    });
 });
 
 builder.Services.AddHttpContextAccessor();
@@ -122,6 +130,13 @@ builder.Services.AddScoped<IBudgetService, BudgetService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IRecurringTransactionService, RecurringTransactionService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+
+builder.Services.Configure<PlaidOptions>(builder.Configuration.GetSection(PlaidOptions.SectionName));
+builder.Services.AddDataProtection();
+builder.Services.AddSingleton<PlaidTokenProtector>();
+builder.Services.AddHttpClient<PlaidApiClient>();
+builder.Services.AddScoped<IPlaidService, PlaidService>();
+
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
 var emailProvider = builder.Configuration["Email:Provider"] ?? "None";
 var emailEnabled = builder.Configuration.GetValue<bool>("Email:Enabled");
@@ -257,6 +272,7 @@ app.MapBudgetEndpoints();
 app.MapDashboardEndpoints();
 app.MapRecurringTransactionEndpoints();
 app.MapNotificationEndpoints();
+app.MapPlaidEndpoints();
 
 app.Run();
 

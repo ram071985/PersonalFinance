@@ -31,6 +31,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Budget> Budgets => Set<Budget>();
     public DbSet<RecurringTransaction> RecurringTransactions => Set<RecurringTransaction>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<PlaidItem> PlaidItems => Set<PlaidItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -62,6 +63,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             e.Property(x => x.RowVersion).IsRowVersion();
             e.HasIndex(x => x.IsActive);
             e.HasIndex(x => x.UserId);
+            e.Property(x => x.ExternalId).HasMaxLength(128);
+            e.HasIndex(x => new { x.UserId, x.ExternalId });
             e.HasQueryFilter(x => CurrentUserId != null && x.UserId == CurrentUserId);
         });
 
@@ -79,6 +82,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<Transaction>(e =>
         {
             e.HasKey(x => x.Id);
+            e.Property(x => x.ExternalId).HasMaxLength(128);
+            e.HasIndex(x => new { x.UserId, x.ExternalId });
             e.Property(x => x.Amount).HasPrecision(18, 2);
             e.Property(x => x.Description).HasMaxLength(200).IsRequired();
             e.Property(x => x.Notes).HasMaxLength(500);
@@ -140,6 +145,23 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             e.HasIndex(x => new { x.UserId, x.IsRead });
             e.HasQueryFilter(x => CurrentUserId != null && x.UserId == CurrentUserId);
         });
+
+        modelBuilder.Entity<PlaidItem>(e =>
+        {
+            e.ToTable("PlaidItems", "pfa");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ItemId).HasMaxLength(128).IsRequired();
+            e.Property(x => x.AccessTokenProtected).HasMaxLength(2000).IsRequired();
+            e.Property(x => x.InstitutionId).HasMaxLength(64);
+            e.Property(x => x.InstitutionName).HasMaxLength(200);
+            e.Property(x => x.SyncCursor).HasMaxLength(512);
+            e.Property(x => x.Status).HasMaxLength(32);
+            e.Property(x => x.LastError).HasMaxLength(1000);
+            e.HasIndex(x => x.ItemId).IsUnique();
+            e.HasIndex(x => x.UserId);
+            e.HasQueryFilter(x => CurrentUserId != null && x.UserId == CurrentUserId);
+        });
+
 
     }
 }

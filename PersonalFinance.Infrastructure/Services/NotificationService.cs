@@ -107,8 +107,11 @@ public class NotificationService : INotificationService
     }
 
     /// <summary>Accepts +1… or 10-digit US numbers; returns E.164 or null.</summary>
-    public static string? NormalizePhone(string raw)
+    public static string? NormalizePhone(string? raw)
     {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
         var digits = new string(raw.Where(char.IsDigit).ToArray());
         if (raw.TrimStart().StartsWith('+') && digits.Length is >= 10 and <= 15)
             return "+" + digits;

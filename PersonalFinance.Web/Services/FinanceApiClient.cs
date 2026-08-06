@@ -7,6 +7,7 @@ using PersonalFinance.Core.Dtos.Dashboard;
 using PersonalFinance.Core.Dtos.Transactions;
 using PersonalFinance.Core.Dtos.Recurring;
 using PersonalFinance.Core.Dtos.Notifications;
+using PersonalFinance.Core.Dtos.Plaid;
 using PersonalFinance.Core.Enums;
 using PersonalFinance.Web.Services;
 
@@ -257,6 +258,31 @@ public class FinanceApiClient
 
     public Task MarkAllNotificationsReadAsync() =>
         PostEmptyAsync("api/notifications/read-all");
+
+    public async Task<SmsSettingsDto> GetSmsSettingsAsync() =>
+        await GetJsonAsync<SmsSettingsDto>("api/notifications/sms-settings") ?? new();
+
+    public Task SaveSmsSettingsAsync(SmsSettingsDto settings) =>
+        PutJsonAsync("api/notifications/sms-settings", settings);
+
+    // ── Plaid ──────────────────────────────────────────────
+    public Task<PlaidLinkTokenResponse?> CreatePlaidLinkTokenAsync() =>
+        PostJsonAsync<PlaidLinkTokenResponse>("api/plaid/link-token", new { });
+
+    public Task<PlaidItemDto?> ExchangePlaidTokenAsync(PlaidExchangeRequest request) =>
+        PostJsonAsync<PlaidItemDto>("api/plaid/exchange", request);
+
+    public async Task<List<PlaidItemDto>> GetPlaidItemsAsync() =>
+        await GetJsonAsync<List<PlaidItemDto>>("api/plaid/items") ?? new();
+
+    public Task<PlaidSyncResultDto?> SyncPlaidItemAsync(int id) =>
+        PostJsonAsync<PlaidSyncResultDto>($"api/plaid/items/{id}/sync", new { });
+
+    public Task<PlaidSyncResultDto?> SyncAllPlaidAsync() =>
+        PostJsonAsync<PlaidSyncResultDto>("api/plaid/sync-all", new { });
+
+    public Task RemovePlaidItemAsync(int id) =>
+        DeleteAsync($"api/plaid/items/{id}");
 
     // ── Dashboard ─────────────────────────────────────────
     public Task<DashboardDto?> GetDashboardAsync() =>
