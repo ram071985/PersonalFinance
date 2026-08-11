@@ -21,7 +21,7 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore
-        run: dotnet restore PersonalFinance.slnx
+        run: dotnet restore PersonalFinanceApp.slnx
 
       - name: Format check
         run: dotnet format PersonalFinance.slnx --verify-no-changes --verbosity diagnostic
