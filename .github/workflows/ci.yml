@@ -24,11 +24,11 @@ jobs:
         run: dotnet restore PersonalFinanceApp.slnx
 
       - name: Format check
-        run: dotnet format PersonalFinance.slnx --verify-no-changes --verbosity diagnostic
+        run: dotnet format PersonalFinanceApp.slnx --verify-no-changes --verbosity diagnostic
         continue-on-error: true
 
       - name: Build
-        run: dotnet build PersonalFinance.slnx -c Release --no-restore
+        run: dotnet build PersonalFinanceApp.slnx -c Release --no-restore
 
       - name: Unit tests (exclude Integration needing SQL)
         run: dotnet test PersonalFinance.Tests/PersonalFinance.Tests.csproj -c Release --no-build --filter "FullyQualifiedName!~Integration" --logger "trx;LogFileName=unit.trx"
