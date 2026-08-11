@@ -35,7 +35,7 @@ jobs:
 
       - name: Vulnerable packages
         run: |
-          dotnet list PersonalFinance.slnx package --vulnerable --include-transitive 2>&1 | tee vuln.txt
+          dotnet list PersonalFinanceApp.slnx package --vulnerable --include-transitive 2>&1 | tee vuln.txt
           if grep -qi "has the following vulnerable packages\|Critical\|High" vuln.txt; then
             echo "Vulnerable packages detected"
             exit 1
