@@ -42,6 +42,7 @@ jobs:
           fi
         continue-on-error: true
 
+
   integration:
     runs-on: ubuntu-latest
     if: false  # enable when SQL Server service container is configured
