@@ -1,7 +1,11 @@
+@using PersonalFinance.Web.Services
 @inject NavigationManager Navigation
+@inject AuthTokenStore TokenStore
+@inject AuthService Auth
+@inject ServerAuthenticationStateProvider AuthState
 
 @code {
-    protected override void OnAfterRender(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
 
@@ -10,6 +14,19 @@
             || relative.StartsWith("register", StringComparison.OrdinalIgnoreCase))
             return;
 
-        Navigation.NavigateTo("/login", forceLoad: false);
+        await TokenStore.EnsureRestoredAsync();
+
+        if (!TokenStore.IsAuthenticated)
+            await Auth.TryRefreshAsync();
+
+        if (TokenStore.IsAuthenticated)
+        {
+            AuthState.NotifyAuthChanged();
+            return;
+        }
+
+        Navigation.NavigateTo(
+            $"/login?returnUrl={Uri.EscapeDataString(relative)}",
+            forceLoad: false);
     }
 }

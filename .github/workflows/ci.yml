@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+env:
+  DOTNET_VERSION: "10.0.x"
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore PersonalFinanceApp.slnx
+
+      - name: Format check
+        run: dotnet format PersonalFinanceApp.slnx --verify-no-changes --verbosity diagnostic
+        continue-on-error: true
+
+      - name: Build
+        run: dotnet build PersonalFinanceApp.slnx -c Release --no-restore
+
+      - name: Unit tests (exclude Integration needing SQL)
+        run: dotnet test PersonalFinance.Tests/PersonalFinance.Tests.csproj -c Release --no-build --filter "FullyQualifiedName!~Integration" --logger "trx;LogFileName=unit.trx"
+
+      - name: Vulnerable packages
+        run: |
+          dotnet list PersonalFinanceApp.slnx package --vulnerable --include-transitive 2>&1 | tee vuln.txt
+          if grep -qi "has the following vulnerable packages\|Critical\|High" vuln.txt; then
+            echo "Vulnerable packages detected"
+            exit 1
+          fi
+        continue-on-error: true
+
+
+  integration:
+    runs-on: ubuntu-latest
+    if: false  # enable when SQL Server service container is configured
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - run: dotnet test --filter FullyQualifiedName~Integration

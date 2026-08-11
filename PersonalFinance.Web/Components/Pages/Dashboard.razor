@@ -1,3 +1,4 @@
+@using PersonalFinance.Web.Helpers
 @page "/"
 @attribute [Authorize]
 @using PersonalFinance.Core.Dtos
@@ -6,7 +7,9 @@
 @using PersonalFinance.Web.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @inject FinanceApiClient Api
+@inject ToastService Toasts
 @inject AuthenticationStateProvider AuthStateProvider
+@inject PersonalFinance.Web.Services.AuthTokenStore TokenStore
 @rendermode InteractiveServer
 
 <PageTitle>Dashboard</PageTitle>
@@ -20,32 +23,64 @@
 {
     <LoadingSpinner Message="Loading dashboard…" />
 }
+else if (_error is not null)
+{
+    <div class="rounded-xl border border-brand/40 bg-surface p-5 text-sm text-foreground">
+        <p class="font-semibold text-brand">Could not load dashboard</p>
+        <p class="mt-2 text-foreground-muted">@_error</p>
+        <button class="mt-4 rounded-lg bg-surface-2 px-3 py-1.5 text-sm hover:bg-border"
+                @onclick="LoadAsync">
+            Retry
+        </button>
+    </div>
+}
 else if (_dashboard is null)
 {
-    <p class="text-foreground-muted">Could not load dashboard. Is the API running?</p>
+    <p class="text-foreground-muted">Dashboard is empty.</p>
 }
 else
 {
     <div class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="rounded-xl border border-border bg-surface p-5">
             <p class="text-sm text-foreground-muted">Net Worth</p>
-            <p class="mt-1 text-2xl font-semibold text-foreground">@_dashboard.NetWorth.ToString("C")</p>
+            <p class="mt-1 text-2xl font-semibold text-foreground">@_dashboard.NetWorth.FormatCurrency()</p>
         </div>
         <div class="rounded-xl border border-border bg-surface p-5">
             <p class="text-sm text-foreground-muted">Monthly Income</p>
-            <p class="mt-1 text-2xl font-semibold text-success">@_dashboard.MonthlyIncome.ToString("C")</p>
+            <p class="mt-1 text-2xl font-semibold text-success">@_dashboard.MonthlyIncome.FormatCurrency()</p>
         </div>
         <div class="rounded-xl border border-border bg-surface p-5">
             <p class="text-sm text-foreground-muted">Monthly Expenses</p>
-            <p class="mt-1 text-2xl font-semibold text-brand">@_dashboard.MonthlyExpenses.ToString("C")</p>
+            <p class="mt-1 text-2xl font-semibold text-brand">@_dashboard.MonthlyExpenses.FormatCurrency()</p>
         </div>
         <div class="rounded-xl border border-border bg-surface p-5">
             <p class="text-sm text-foreground-muted">Monthly Net</p>
             <p class="mt-1 text-2xl font-semibold @(_dashboard.MonthlyNet >= 0 ? "text-success" : "text-brand")">
-                @_dashboard.MonthlyNet.ToString("C")
+                @_dashboard.MonthlyNet.FormatCurrency()
             </p>
         </div>
     </div>
+
+    @if (_dashboard.OverBudget.Count > 0)
+    {
+        <div class="mb-8 rounded-xl border border-brand/40 bg-surface p-5">
+            <h2 class="mb-3 text-lg font-semibold text-brand">Over budget</h2>
+            <ul class="space-y-2 text-sm">
+                @foreach (var b in _dashboard.OverBudget)
+                {
+                    <li class="flex items-center justify-between gap-3">
+                        <span>@(b.CategoryIcon ?? "") @b.CategoryName</span>
+                        <span class="font-mono text-brand">
+                            @b.Spent.FormatCurrency() / @b.Amount.FormatCurrency()
+                            <span class="text-foreground-muted">(@b.PercentUsed.ToString("0.#")%)</span>
+                        </span>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+
+    <CategorySpendChart Items="_dashboard.CategorySpend" />
 
     <h2 class="mb-4 text-lg font-semibold text-foreground">Recent Transactions</h2>
     <div class="overflow-hidden rounded-xl border border-border bg-surface">
@@ -63,7 +98,7 @@ else
                 <tbody>
                     @if (_dashboard.RecentTransactions.Count == 0)
                     {
-                        <tr><td colspan="5" class="px-5 py-8 text-center text-foreground-muted">No transactions yet.</td></tr>
+                        <tr><td colspan="5" class="table-empty px-5 py-8"><EmptyState Icon="💸" Title="No recent activity" Message="New transactions will appear here." /></td></tr>
                     }
                     else
                     {
@@ -81,7 +116,7 @@ else
                                     else { <span class="text-foreground-muted">—</span> }
                                 </td>
                                 <td class="px-5 py-3.5 text-right font-mono @(tx.Type == TransactionType.Income ? "text-success" : "text-brand")">
-                                    @(tx.Type == TransactionType.Income ? "+" : "-")@tx.Amount.ToString("C")
+                                    @(tx.Type == TransactionType.Income ? "+" : "-")@tx.Amount.FormatCurrency()
                                 </td>
                             </tr>
                         }
@@ -95,6 +130,7 @@ else
 @code {
     private DashboardDto? _dashboard;
     private bool _isLoading = true;
+    private string? _error;
     private string _displayName = "there";
 
     protected override async Task OnInitializedAsync()
@@ -109,8 +145,33 @@ else
                 : "there";
         }
 
-        try { _dashboard = await Api.GetDashboardAsync(); }
-        catch { _dashboard = null; }
-        finally { _isLoading = false; }
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _error = null;
+        _dashboard = null;
+
+        try
+        {
+            await TokenStore.EnsureRestoredAsync();
+            _dashboard = await Api.GetDashboardAsync();
+            if (_dashboard is null)
+                _error = "API returned no data. Check that you are logged in and the API is running on https://localhost:7000.";
+        }
+        catch (HttpRequestException ex)
+        {
+            _error = $"API request failed: {ex.Message}. Is the API running? Are you logged in?";
+        }
+        catch (Exception ex)
+        {
+            _error = $"{ex.GetType().Name}: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 }

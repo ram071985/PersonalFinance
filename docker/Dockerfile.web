@@ -1,0 +1,18 @@
+# PersonalFinance.Web — multi-stage
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY PersonalFinance.sln ./
+COPY PersonalFinance.Core/PersonalFinance.Core.csproj PersonalFinance.Core/
+COPY PersonalFinance.Web/PersonalFinance.Web.csproj PersonalFinance.Web/
+RUN dotnet restore PersonalFinance.Web/PersonalFinance.Web.csproj
+COPY PersonalFinance.Core/ PersonalFinance.Core/
+COPY PersonalFinance.Web/ PersonalFinance.Web/
+RUN dotnet publish PersonalFinance.Web/PersonalFinance.Web.csproj -c Release -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_ENVIRONMENT=Production
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "PersonalFinance.Web.dll"]

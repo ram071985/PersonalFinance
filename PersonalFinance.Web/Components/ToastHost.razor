@@ -1,0 +1,23 @@
+@using PersonalFinance.Web.Services
+@inject ToastService Toasts
+@implements IDisposable
+
+<div class="pf-toast-host" aria-live="polite" aria-relevant="additions">
+    @foreach (var msg in Toasts.Messages)
+    {
+        <div class="pf-toast pf-toast-@msg.Level.ToString().ToLowerInvariant()" role="status">
+            <span>@msg.Text</span>
+            <button type="button" class="pf-toast-close" @onclick="() => Dismiss(msg.Id)" aria-label="Dismiss">×</button>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => Toasts.OnChange += Refresh;
+
+    private async Task Refresh() => await InvokeAsync(StateHasChanged);
+
+    private async Task Dismiss(Guid id) => await Toasts.DismissAsync(id);
+
+    public void Dispose() => Toasts.OnChange -= Refresh;
+}

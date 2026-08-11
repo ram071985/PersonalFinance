@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using PersonalFinance.Core.Enums;
 
-namespace PersonalFinance.Models;
+namespace PersonalFinance.Web.Models;
 
 public class CategoryFormModel
 {

@@ -1,7 +1,6 @@
+using PersonalFinance.Api.Filters;
 using PersonalFinance.Core.Dtos.Accounts;
-using PersonalFinance.Core.Entities;
 using PersonalFinance.Core.Interfaces;
-using PersonalFinance.Core.Mappings;
 
 namespace PersonalFinance.Api.Endpoints;
 
@@ -9,10 +8,17 @@ public static class AccountEndpoints
 {
     public static IEndpointRouteBuilder MapAccountEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/accounts").WithTags("Accounts");
+        var group = app.MapGroup("/api/accounts")
+            .WithTags("Accounts")
+            .RequireAuthorization();
 
-        group.MapGet("/", async (IAccountService service) =>
-            Results.Ok(await service.GetAllAsync()));
+        group.MapGet("/", async (IAccountService service, int? page, int? pageSize) =>
+        {
+            if (page is null && pageSize is null)
+                return Results.Ok(await service.GetAllAsync());
+
+            return Results.Ok(await service.GetPagedAsync(page ?? 1, pageSize ?? 20));
+        });
 
         group.MapGet("/{id:int}", async (int id, IAccountService service) =>
         {
@@ -27,18 +33,20 @@ public static class AccountEndpoints
         {
             var created = await service.CreateAsync(account);
             return Results.Created($"/api/accounts/{created.Id}", created);
-        });
+        }).Validate<CreateAccountRequest>();
 
         group.MapPut("/{id:int}", async (int id, UpdateAccountRequest input, IAccountService service) =>
         {
-            var updated = await service.UpdateAsync(id, input);
-            return updated ? Results.NoContent() : Results.NotFound();
-        });
+            var result = await service.UpdateAsync(id, input);
+            return result.IsSuccess
+                ? Results.NoContent()
+                : Results.NotFound(new { message = result.Error });
+        }).Validate<UpdateAccountRequest>();
 
         group.MapDelete("/{id:int}", async (int id, IAccountService service) =>
         {
-            await service.DeleteAsync(id);
-            return Results.NoContent();
+            var deleted = await service.DeleteAsync(id);
+            return deleted ? Results.NoContent() : Results.NotFound();
         });
 
         return app;

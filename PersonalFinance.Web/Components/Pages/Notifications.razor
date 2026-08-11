@@ -1,0 +1,92 @@
+@page "/notifications"
+@attribute [Authorize]
+@using PersonalFinance.Core.Dtos.Notifications
+@using PersonalFinance.Web.Services
+@inject FinanceApiClient Api
+@inject ToastService Toasts
+@rendermode InteractiveServer
+
+<PageTitle>Notifications</PageTitle>
+
+<div class="page-toolbar">
+    <h1>Notifications</h1>
+    <div class="page-toolbar-actions">
+        <button type="button" class="page-action-btn-secondary" @onclick="MarkAllAsync">
+            Mark all read
+        </button>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <SkeletonRows Rows="4" />
+}
+else if (_items.Count == 0)
+{
+    <div class="rounded-xl border border-border bg-surface p-6">
+        <EmptyState Icon="🔔" Title="No notifications" Message="Budget alerts will show up here." />
+    </div>
+}
+else
+{
+    <ul class="space-y-2">
+        @foreach (var n in _items)
+        {
+            <li class="rounded-xl border border-border bg-surface p-4 @(n.IsRead ? "opacity-70" : "")">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="font-semibold text-foreground">@n.Title</p>
+                        <p class="mt-1 text-sm text-foreground-muted">@n.Message</p>
+                        <p class="mt-2 text-xs text-foreground-muted">@n.CreatedAt.ToLocalTime().ToString("g")</p>
+                    </div>
+                    @if (!n.IsRead)
+                    {
+                        <button type="button" class="page-action-btn-secondary text-xs"
+                                @onclick="() => MarkReadAsync(n.Id)">
+                            Read
+                        </button>
+                    }
+                </div>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private List<NotificationDto> _items = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try { _items = await Api.GetNotificationsAsync(); }
+        catch (Exception ex)
+        {
+            _items = new();
+            await Toasts.ErrorAsync(ex.Message);
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task MarkReadAsync(int id)
+    {
+        try
+        {
+            await Api.MarkNotificationReadAsync(id);
+            await LoadAsync();
+        }
+        catch (Exception ex) { await Toasts.ErrorAsync(ex.Message); }
+    }
+
+    private async Task MarkAllAsync()
+    {
+        try
+        {
+            await Api.MarkAllNotificationsReadAsync();
+            await LoadAsync();
+        }
+        catch (Exception ex) { await Toasts.ErrorAsync(ex.Message); }
+    }
+}

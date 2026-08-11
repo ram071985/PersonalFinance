@@ -6,9 +6,9 @@ using PersonalFinance.Infrastructure.Data;
 namespace PersonalFinance.Infrastructure.Services;
 
 /// <summary>
-/// After register / login:
+/// After register:
 /// 1) Assigns legacy finance rows (NULL/empty UserId) to this user.
-/// 2) Seeds default categories if the user has none.
+/// 2) Seeds default categories once (by name), never duplicates.
 /// </summary>
 public class UserFinanceBootstrap
 {
@@ -19,12 +19,12 @@ public class UserFinanceBootstrap
     public async Task InitializeForUserAsync(string userId)
     {
         await ClaimOrphanDataAsync(userId);
-        await SeedDefaultCategoriesIfEmptyAsync(userId);
+        await SeedDefaultCategoriesIfNeededAsync(userId);
+        await DedupeCategoriesAsync(userId);
     }
 
     private async Task ClaimOrphanDataAsync(string userId)
     {
-        // Raw SQL: EF non-nullable string properties don't map SQL NULL cleanly
         await _db.Database.ExecuteSqlInterpolatedAsync(
             $"""
              UPDATE pfa.Accounts SET UserId = {userId} WHERE UserId IS NULL OR UserId = ''
@@ -43,26 +43,74 @@ public class UserFinanceBootstrap
              """);
     }
 
-    private async Task SeedDefaultCategoriesIfEmptyAsync(string userId)
+    private async Task SeedDefaultCategoriesIfNeededAsync(string userId)
     {
-        var hasCategories = await _db.Categories.AnyAsync(c => c.UserId == userId);
-        if (hasCategories) return;
+        // Ignore global UserId filter — register runs without a signed-in user.
+        var existingNames = await _db.Categories
+            .IgnoreQueryFilters()
+            .Where(c => c.UserId == userId)
+            .Select(c => c.Name)
+            .ToListAsync();
 
-        var defaults = new List<Category>
+        var existing = new HashSet<string>(existingNames, StringComparer.OrdinalIgnoreCase);
+
+        var defaults = new (string Name, CategoryType Type, string Icon, string Color)[]
         {
-            new() { UserId = userId, Name = "Salary", Type = CategoryType.Income, Icon = "💵", Color = "#22c55e" },
-            new() { UserId = userId, Name = "Freelance", Type = CategoryType.Income, Icon = "💻", Color = "#16a34a" },
-            new() { UserId = userId, Name = "Groceries", Type = CategoryType.Expense, Icon = "🛒", Color = "#ef4444" },
-            new() { UserId = userId, Name = "Rent", Type = CategoryType.Expense, Icon = "🏠", Color = "#dc2626" },
-            new() { UserId = userId, Name = "Utilities", Type = CategoryType.Expense, Icon = "💡", Color = "#f97316" },
-            new() { UserId = userId, Name = "Dining Out", Type = CategoryType.Expense, Icon = "🍽️", Color = "#eab308" },
-            new() { UserId = userId, Name = "Transportation", Type = CategoryType.Expense, Icon = "🚗", Color = "#3b82f6" },
-            new() { UserId = userId, Name = "Entertainment", Type = CategoryType.Expense, Icon = "🎬", Color = "#8b5cf6" },
-            new() { UserId = userId, Name = "Healthcare", Type = CategoryType.Expense, Icon = "🏥", Color = "#ec4899" },
-            new() { UserId = userId, Name = "Shopping", Type = CategoryType.Expense, Icon = "🛍️", Color = "#f43f5e" },
+            ("Salary", CategoryType.Income, "💵", "#22c55e"),
+            ("Freelance", CategoryType.Income, "💻", "#16a34a"),
+            ("Groceries", CategoryType.Expense, "🛒", "#ef4444"),
+            ("Rent", CategoryType.Expense, "🏠", "#dc2626"),
+            ("Utilities", CategoryType.Expense, "💡", "#f97316"),
+            ("Dining Out", CategoryType.Expense, "🍽️", "#eab308"),
+            ("Transportation", CategoryType.Expense, "🚗", "#3b82f6"),
+            ("Entertainment", CategoryType.Expense, "🎬", "#8b5cf6"),
+            ("Healthcare", CategoryType.Expense, "🏥", "#ec4899"),
+            ("Shopping", CategoryType.Expense, "🛍️", "#f43f5e"),
         };
 
-        _db.Categories.AddRange(defaults);
+        var toAdd = defaults
+            .Where(d => !existing.Contains(d.Name))
+            .Select(d => new Category
+            {
+                UserId = userId,
+                Name = d.Name,
+                Type = d.Type,
+                Icon = d.Icon,
+                Color = d.Color,
+                IsActive = true
+            })
+            .ToList();
+
+        if (toAdd.Count == 0) return;
+
+        _db.Categories.AddRange(toAdd);
         await _db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Soft-deactivate duplicate category names for a user (keep lowest Id).
+    /// </summary>
+    private async Task DedupeCategoriesAsync(string userId)
+    {
+        var cats = await _db.Categories
+            .IgnoreQueryFilters()
+            .Where(c => c.UserId == userId && c.IsActive)
+            .OrderBy(c => c.Id)
+            .ToListAsync();
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var changed = false;
+        foreach (var c in cats)
+        {
+            var key = $"{c.Type}:{c.Name}";
+            if (!seen.Add(key))
+            {
+                c.IsActive = false;
+                changed = true;
+            }
+        }
+
+        if (changed)
+            await _db.SaveChangesAsync();
     }
 }

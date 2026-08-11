@@ -1,0 +1,173 @@
+@page "/bank-connections"
+@attribute [Authorize]
+@using PersonalFinance.Core.Dtos.Plaid
+@using PersonalFinance.Web.Services
+@inject FinanceApiClient Api
+@inject ToastService Toasts
+@inject ConfirmService Confirm
+@inject IJSRuntime Js
+@rendermode InteractiveServer
+
+<PageTitle>Bank connections</PageTitle>
+
+<div class="page-toolbar">
+    <h1>Bank connections</h1>
+    <div class="page-toolbar-actions">
+        <button type="button" class="page-action-btn-secondary" disabled="@_busy" @onclick="SyncAllAsync">
+            Sync all
+        </button>
+        <button type="button" class="page-action-btn" disabled="@_busy" @onclick="ConnectAsync">
+            Connect bank
+        </button>
+    </div>
+</div>
+
+<p class="mb-6 text-sm text-foreground-muted">
+    Link once with Plaid. We store an encrypted access token so you don’t sign in to your bank every time you open this app.
+    Transactions sync automatically after linking and when you hit Sync.
+</p>
+
+@if (_loading)
+{
+    <LoadingSpinner Message="Loading connections…" />
+}
+else if (_items.Count == 0)
+{
+    <div class="rounded-xl border border-border bg-surface p-8">
+        <EmptyState Icon="🏦" Title="No banks linked" Message="Connect Chase or another bank to import transactions automatically." />
+    </div>
+}
+else
+{
+    <div class="space-y-3">
+        @foreach (var item in _items)
+        {
+            <div class="rounded-xl border border-border bg-surface p-4">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <p class="font-semibold text-foreground">@(item.InstitutionName ?? "Institution")</p>
+                        <p class="mt-1 text-xs text-foreground-muted">
+                            Status: @item.Status
+                            @if (item.LastSyncedAt is not null)
+                            {
+                                <span> · Last sync @item.LastSyncedAt.Value.ToLocalTime().ToString("g")</span>
+                            }
+                        </p>
+                        @if (!string.IsNullOrEmpty(item.LastError))
+                        {
+                            <p class="mt-1 text-xs text-brand">@item.LastError</p>
+                        }
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" class="page-action-btn-secondary text-xs" disabled="@_busy"
+                                @onclick="() => SyncOneAsync(item.Id)">Sync</button>
+                        <button type="button" class="rounded-lg border border-brand px-3 py-2 text-xs text-brand hover:bg-brand hover:text-white"
+                                disabled="@_busy" @onclick="() => RemoveAsync(item.Id)">Disconnect</button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<PlaidItemDto> _items = new();
+    private bool _loading = true;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try { _items = await Api.GetPlaidItemsAsync(); }
+        catch (Exception ex)
+        {
+            _items = new();
+            await Toasts.ErrorAsync(ex.Message);
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task ConnectAsync()
+    {
+        _busy = true;
+        try
+        {
+            var link = await Api.CreatePlaidLinkTokenAsync();
+            if (link is null || string.IsNullOrEmpty(link.LinkToken))
+                throw new InvalidOperationException("Could not create Plaid link token. Is Plaid configured?");
+
+            var result = await Js.InvokeAsync<PlaidLinkResult?>("pfPlaid.open", link.LinkToken);
+            if (result is null || string.IsNullOrEmpty(result.PublicToken))
+                return; // user cancelled
+
+            await Api.ExchangePlaidTokenAsync(new PlaidExchangeRequest
+            {
+                PublicToken = result.PublicToken,
+                InstitutionId = result.InstitutionId,
+                InstitutionName = result.InstitutionName
+            });
+
+            await Toasts.SuccessAsync("Bank linked. Transactions imported.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            await Toasts.ErrorAsync(ex.Message);
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task SyncAllAsync()
+    {
+        _busy = true;
+        try
+        {
+            var r = await Api.SyncAllPlaidAsync();
+            await Toasts.SuccessAsync($"Synced: +{r?.TransactionsAdded ?? 0} txns");
+            await LoadAsync();
+        }
+        catch (Exception ex) { await Toasts.ErrorAsync(ex.Message); }
+        finally { _busy = false; }
+    }
+
+    private async Task SyncOneAsync(int id)
+    {
+        _busy = true;
+        try
+        {
+            var r = await Api.SyncPlaidItemAsync(id);
+            await Toasts.SuccessAsync($"Synced: +{r?.TransactionsAdded ?? 0} txns");
+            await LoadAsync();
+        }
+        catch (Exception ex) { await Toasts.ErrorAsync(ex.Message); }
+        finally { _busy = false; }
+    }
+
+    private async Task RemoveAsync(int id)
+    {
+        if (!await Confirm.ShowAsync(
+                "Disconnect this bank? Future automatic imports will stop. Existing accounts and transactions stay.",
+                title: "Disconnect bank",
+                confirmText: "Disconnect"))
+            return;
+
+        _busy = true;
+        try
+        {
+            await Api.RemovePlaidItemAsync(id);
+            await Toasts.SuccessAsync("Bank disconnected.");
+            await LoadAsync();
+        }
+        catch (Exception ex) { await Toasts.ErrorAsync(ex.Message); }
+        finally { _busy = false; }
+    }
+
+    private sealed class PlaidLinkResult
+    {
+        public string? PublicToken { get; set; }
+        public string? InstitutionId { get; set; }
+        public string? InstitutionName { get; set; }
+    }
+}

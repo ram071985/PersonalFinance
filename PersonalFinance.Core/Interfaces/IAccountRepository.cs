@@ -8,6 +8,7 @@ public interface IAccountRepository
     Task<Account?> GetByIdAsync(int id);
     Task<Account> AddAsync(Account account);
     Task UpdateAsync(Account account);
-    Task DeleteAsync(int id);
+    Task<bool> DeleteAsync(int id);
     Task<decimal> GetTotalBalanceAsync();
+    Task<(IReadOnlyList<Account> Items, int Total)> GetPagedAsync(int page, int pageSize);
 }

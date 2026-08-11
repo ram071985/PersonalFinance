@@ -1,11 +1,17 @@
 ﻿@inherits LayoutComponentBase
 
+<AuthRestorer />
+<ToastHost />
+<ConfirmHost />
+
 <div class="page">
     <NavShell />
 
     <main class="main-content">
         <article class="content">
-            @Body
+            <AppErrorBoundary>
+                @Body
+            </AppErrorBoundary>
         </article>
     </main>
 </div>

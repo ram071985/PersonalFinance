@@ -1,8 +1,10 @@
 name: Deploy API
 
+# Azure deploy only when code is pushed to main
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
     paths:
       - 'PersonalFinance.Api/**'
       - 'PersonalFinance.Core/**'
