@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+/* UI stack: Tailwind utilities + local component classes only. No Bootstrap CSS. */
+
 /* =========================================================
    Previous OpenClaw dark theme + layout (restored)
    ========================================================= */

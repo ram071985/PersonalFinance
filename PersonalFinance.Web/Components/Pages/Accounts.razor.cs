@@ -8,12 +8,15 @@ namespace PersonalFinance.Web.Components.Pages;
 
 public partial class Accounts : ComponentBase
 {
+    [Inject] private FinanceApiClient Api { get; set; } = default!;
+    [Inject] private ToastService Toasts { get; set; } = default!;
+    [Inject] private ConfirmService Confirm { get; set; } = default!;
+
     private List<AccountDto> _accounts = new();
     private AccountFormModel _formModel = new();
     private bool _isLoading = true;
     private bool _showForm;
-    [Inject] private ToastService Toasts { get; set; } = default!;
-    [Inject] private FinanceApiClient Api { get; set; } = default!;
+
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
     private async Task LoadAsync()
@@ -83,6 +86,12 @@ public partial class Accounts : ComponentBase
 
     private async Task DeleteAsync(int id)
     {
+        if (!await Confirm.ShowAsync(
+                "Archive this account? It will be hidden from lists but history is kept.",
+                title: "Archive account",
+                confirmText: "Archive"))
+            return;
+
         try
         {
             await Api.DeleteAccountAsync(id);

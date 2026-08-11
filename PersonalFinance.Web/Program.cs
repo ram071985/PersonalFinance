@@ -42,6 +42,7 @@ builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<ServerAuthenticationStateProvider>());
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ToastService>();
+builder.Services.AddScoped<ConfirmService>();
 var apiBase = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7000/";
 
 // Login/register — no bearer

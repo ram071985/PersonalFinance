@@ -27,19 +27,43 @@ public class ToastService
 
     public async Task ShowAsync(string text, ToastLevel level = ToastLevel.Info)
     {
-        _messages.Add(new ToastMessage { Text = text, Level = level });
-        if (OnChange is not null) await OnChange.Invoke();
+        if (string.IsNullOrWhiteSpace(text)) return;
 
-        // Auto-dismiss after a few seconds is handled by the UI component.
+        var msg = new ToastMessage { Text = text.Trim(), Level = level };
+        _messages.Add(msg);
+        await NotifyAsync();
+
+        // Auto-dismiss (fire-and-forget on circuit)
+        _ = DismissAfterAsync(msg.Id, TimeSpan.FromSeconds(4));
     }
 
     public Task SuccessAsync(string text) => ShowAsync(text, ToastLevel.Success);
     public Task ErrorAsync(string text) => ShowAsync(text, ToastLevel.Error);
     public Task WarningAsync(string text) => ShowAsync(text, ToastLevel.Warning);
+    public Task InfoAsync(string text) => ShowAsync(text, ToastLevel.Info);
 
     public async Task DismissAsync(Guid id)
     {
-        _messages.RemoveAll(m => m.Id == id);
-        if (OnChange is not null) await OnChange.Invoke();
+        if (_messages.RemoveAll(m => m.Id == id) > 0)
+            await NotifyAsync();
+    }
+
+    private async Task DismissAfterAsync(Guid id, TimeSpan delay)
+    {
+        try
+        {
+            await Task.Delay(delay);
+            await DismissAsync(id);
+        }
+        catch
+        {
+            // Circuit disposed — ignore
+        }
+    }
+
+    private async Task NotifyAsync()
+    {
+        if (OnChange is not null)
+            await OnChange.Invoke();
     }
 }

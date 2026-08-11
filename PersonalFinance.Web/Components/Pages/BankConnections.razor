@@ -4,6 +4,7 @@
 @using PersonalFinance.Web.Services
 @inject FinanceApiClient Api
 @inject ToastService Toasts
+@inject ConfirmService Confirm
 @inject IJSRuntime Js
 @rendermode InteractiveServer
 
@@ -146,6 +147,12 @@ else
 
     private async Task RemoveAsync(int id)
     {
+        if (!await Confirm.ShowAsync(
+                "Disconnect this bank? Future automatic imports will stop. Existing accounts and transactions stay.",
+                title: "Disconnect bank",
+                confirmText: "Disconnect"))
+            return;
+
         _busy = true;
         try
         {

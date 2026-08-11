@@ -14,6 +14,8 @@ public partial class Budgets : ComponentBase
     private BudgetFormModel _formModel = new();
     [Inject]
     private FinanceApiClient Api { get; set; } = default!;
+    [Inject] private ToastService Toasts { get; set; } = default!;
+    [Inject] private ConfirmService Confirm { get; set; } = default!;
     private bool _isLoading = true;
     private bool _showForm;
     private int _selectedYear = DateTime.Now.Year;
@@ -67,20 +69,44 @@ public partial class Budgets : ComponentBase
         try
         {
             if (model.Id is null)
+            {
                 await Api.CreateBudgetAsync(model.ToCreateRequest());
+                await Toasts.SuccessAsync("Budget created.");
+            }
             else
+            {
                 await Api.UpdateBudgetAsync(model.Id.Value, model.ToUpdateRequest());
+                await Toasts.SuccessAsync("Budget updated.");
+            }
 
             _showForm = false;
             await LoadAsync();
         }
-        catch (Exception ex) { model.ErrorMessage = ex.Message; }
+        catch (Exception ex)
+        {
+            model.ErrorMessage = ex.Message;
+            await Toasts.ErrorAsync(ex.Message);
+        }
         finally { model.IsSaving = false; }
     }
 
     private async Task DeleteAsync(int id)
     {
-        await Api.DeleteBudgetAsync(id);
-        await LoadAsync();
+        if (!await Confirm.ShowAsync(
+                "Delete this budget limit?",
+                title: "Delete budget",
+                confirmText: "Delete"))
+            return;
+
+        try
+        {
+            await Api.DeleteBudgetAsync(id);
+            await Toasts.SuccessAsync("Budget deleted.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            await Toasts.ErrorAsync(ex.Message);
+        }
     }
 }

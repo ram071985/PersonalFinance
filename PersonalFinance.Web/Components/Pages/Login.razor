@@ -6,6 +6,7 @@
 @layout AuthLayout
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject AuthService Auth
+@inject ToastService Toasts
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 @inject AuthTokenStore TokenStore
@@ -100,16 +101,17 @@
             if (!success)
             {
                 _errorMessage = error ?? "Login failed.";
+                await Toasts.ErrorAsync(_errorMessage);
                 return;
             }
 
-            // Force another persist now that the interactive circuit is fully up
             await TokenStore.PersistAsync();
             await TokenStore.EnsureRestoredAsync();
 
             if (!TokenStore.IsAuthenticated)
             {
                 _errorMessage = "Login succeeded but token could not be saved in the browser. Check that sessionStorage is allowed.";
+                await Toasts.ErrorAsync(_errorMessage);
                 return;
             }
 
@@ -117,13 +119,17 @@
             if (state.User.Identity?.IsAuthenticated != true)
             {
                 _errorMessage = "Token stored but auth state is still anonymous.";
+                await Toasts.ErrorAsync(_errorMessage);
                 return;
             }
+
+            await Toasts.SuccessAsync("Signed in.");
             Navigation.NavigateTo("/", forceLoad: false, replace: true);
         }
         catch (Exception ex)
         {
             _errorMessage = ex.Message;
+            await Toasts.ErrorAsync(ex.Message);
         }
         finally
         {

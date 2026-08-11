@@ -1,0 +1,37 @@
+@inject ConfirmService Confirm
+@implements IDisposable
+
+@if (Confirm.IsOpen)
+{
+    <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" @onclick="Cancel">
+        <div class="w-full max-w-md rounded-xl border border-border bg-surface p-5 shadow-xl"
+             @onclick:stopPropagation="true"
+             role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+            <h2 id="confirm-title" class="text-lg font-semibold text-foreground">@Confirm.Title</h2>
+            <p class="mt-2 text-sm text-foreground-muted">@Confirm.Message</p>
+            <div class="mt-5 flex justify-end gap-2">
+                <button type="button" class="page-action-btn-secondary" @onclick="Cancel">
+                    @Confirm.CancelText
+                </button>
+                <button type="button"
+                        class="@(Confirm.IsDanger
+                                   ? "rounded-lg border border-brand bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                                   : "page-action-btn")"
+                        @onclick="Accept">
+                    @Confirm.ConfirmText
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized() => Confirm.OnChange += Refresh;
+
+    private async Task Refresh() => await InvokeAsync(StateHasChanged);
+
+    private async Task Accept() => await Confirm.AcceptAsync();
+    private async Task Cancel() => await Confirm.CancelAsync();
+
+    public void Dispose() => Confirm.OnChange -= Refresh;
+}

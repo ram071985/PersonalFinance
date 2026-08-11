@@ -5,6 +5,7 @@ using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Dtos.Transactions;
 using PersonalFinance.Core.Enums;
 using PersonalFinance.Web.Models;
+using PersonalFinance.Web.Models;
 using PersonalFinance.Web.Services;
 
 namespace PersonalFinance.Web.Components.Pages;
@@ -19,6 +20,9 @@ public partial class Transactions : ComponentBase
 
     [Inject]
     private ToastService Toasts { get; set; } = default!;
+
+    [Inject]
+    private ConfirmService Confirm { get; set; } = default!;
 
     [Inject]
     private IJSRuntime Js { get; set; } = default!;
@@ -40,6 +44,9 @@ public partial class Transactions : ComponentBase
         _isLoading = true;
         try
         {
+            // Quiet Plaid refresh if linked (no re-auth; uses stored token)
+            try { await Api.SyncAllPlaidAsync(); } catch { /* Plaid optional */ }
+
             _transactions = await Api.GetTransactionsAsync();
             _accounts = await Api.GetAccountsAsync();
             _categories = await Api.GetCategoriesAsync();
@@ -106,8 +113,22 @@ public partial class Transactions : ComponentBase
 
     private async Task DeleteAsync(int id)
     {
-        await Api.DeleteTransactionAsync(id);
-        await LoadAsync();
+        if (!await Confirm.ShowAsync(
+                "Delete this transaction? This cannot be undone.",
+                title: "Delete transaction",
+                confirmText: "Delete"))
+            return;
+
+        try
+        {
+            await Api.DeleteTransactionAsync(id);
+            await Toasts.SuccessAsync("Transaction deleted.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            await Toasts.ErrorAsync(ex.Message);
+        }
     }
 
     private async Task ExportCsvAsync()
