@@ -43,7 +43,12 @@ builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ToastService>();
 builder.Services.AddScoped<ConfirmService>();
-var apiBase = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7000/";
+// Empty string in appsettings is not null — treat whitespace as missing.
+var apiBase = builder.Configuration["ApiBaseUrl"];
+if (string.IsNullOrWhiteSpace(apiBase))
+    apiBase = "https://localhost:7000/";
+if (!apiBase.EndsWith('/'))
+    apiBase += "/";
 
 // Login/register — no bearer
 builder.Services.AddHttpClient("AuthApi", c => c.BaseAddress = new Uri(apiBase));
