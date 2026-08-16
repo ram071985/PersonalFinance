@@ -31,21 +31,40 @@ public class AuthService
     {
         try
         {
-            var result = await _js.InvokeAsync<AuthFetchResult>(
+            if (string.IsNullOrWhiteSpace(ApiBase) || ApiBase.Contains("localhost", StringComparison.OrdinalIgnoreCase))
+            {
+                // Still allow localhost for local dev; only warn shape
+            }
+
+            var result = await _js.InvokeAsync<AuthJsResult>(
                 "pfAuth.login", ApiBase, email, password, rememberMe);
+
+            if (result is null)
+                return (false, "Login failed: no response from browser auth helper (pfAuth).");
 
             if (result.Status == 401)
                 return (false, "Invalid email or password.");
 
-            if (!result.Ok)
+            if (!result.Ok || string.IsNullOrWhiteSpace(result.Token))
+            {
+                if (!string.IsNullOrWhiteSpace(result.Error))
+                    return (false, result.Error);
+                if (result.Status == 0)
+                    return (false, $"Login failed — check ApiBaseUrl ({ApiBase}) and browser console.");
                 return (false, $"Login failed ({result.Status}): {result.Text}");
+            }
 
-            if (!TryParseAuth(result.Text, out var token, out var userEmail, out var userId, out var expires, out var parseError))
-                return (false, parseError);
+            var expires = DateTime.UtcNow.AddHours(8);
+            if (!string.IsNullOrWhiteSpace(result.ExpiresAt) &&
+                DateTime.TryParse(result.ExpiresAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var parsed))
+            {
+                expires = parsed.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(parsed, DateTimeKind.Utc)
+                    : parsed.ToUniversalTime();
+            }
 
-            // Refresh token lives in httpOnly cookie only
             _tokenStore.SetRememberMe(rememberMe);
-            _tokenStore.Set(token, refreshToken: null, userEmail, userId, expires);
+            _tokenStore.Set(result.Token, refreshToken: null, result.Email ?? email, result.UserId ?? "", expires);
             await _tokenStore.PersistAsync();
             _authState.NotifyAuthChanged();
             return (true, null);
@@ -60,21 +79,32 @@ public class AuthService
     {
         try
         {
-            var result = await _js.InvokeAsync<AuthFetchResult>(
+            var result = await _js.InvokeAsync<AuthJsResult>(
                 "pfAuth.register", ApiBase, email, password);
 
-            if (!result.Ok)
+            if (result is null)
+                return (false, "Register failed: no response from browser auth helper.");
+
+            if (!result.Ok || string.IsNullOrWhiteSpace(result.Token))
             {
+                if (!string.IsNullOrWhiteSpace(result.Error))
+                    return (false, result.Error);
                 if (TryGetMessage(result.Text, out var msg))
                     return (false, msg);
                 return (false, $"Registration failed ({result.Status}): {result.Text}");
             }
 
-            if (!TryParseAuth(result.Text, out var token, out var userEmail, out var userId, out var expires, out var parseError))
-                return (false, parseError);
+            var expires = DateTime.UtcNow.AddHours(8);
+            if (!string.IsNullOrWhiteSpace(result.ExpiresAt) &&
+                DateTime.TryParse(result.ExpiresAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var parsed))
+            {
+                expires = parsed.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(parsed, DateTimeKind.Utc)
+                    : parsed.ToUniversalTime();
+            }
 
             _tokenStore.SetRememberMe(false);
-            _tokenStore.Set(token, refreshToken: null, userEmail, userId, expires);
+            _tokenStore.Set(result.Token, refreshToken: null, result.Email ?? email, result.UserId ?? "", expires);
             await _tokenStore.PersistAsync();
             _authState.NotifyAuthChanged();
             return (true, null);
@@ -101,7 +131,7 @@ public class AuthService
         {
             await _tokenStore.EnsureRestoredAsync();
 
-            var result = await _js.InvokeAsync<AuthFetchResult>("pfAuth.refresh", ApiBase);
+            var result = await _js.InvokeAsync<AuthJsResult>("pfAuth.refresh", ApiBase);
             // Only clear session on definitive auth rejection — not on CORS/network blips
             if (result.Status == 401 || result.Status == 403)
             {
@@ -136,7 +166,7 @@ public class AuthService
     {
         try
         {
-            await _js.InvokeAsync<AuthFetchResult>(
+            await _js.InvokeAsync<AuthJsResult>(
                 "pfAuth.logout", ApiBase, _tokenStore.AccessToken);
         }
         catch { /* ignore */ }
@@ -232,11 +262,17 @@ public class AuthService
         return false;
     }
 
-    /// <summary>Shape returned from pfAuth.* JS helpers.</summary>
-    private sealed class AuthFetchResult
+    /// <summary>Flat shape from pfAuth.login / register for reliable interop.</summary>
+    private sealed class AuthJsResult
     {
         public int Status { get; set; }
         public bool Ok { get; set; }
+        public string? Token { get; set; }
+        public string? Email { get; set; }
+        public string? UserId { get; set; }
+        public string? ExpiresAt { get; set; }
+        public string? Error { get; set; }
         public string Text { get; set; } = "";
     }
 }
+
