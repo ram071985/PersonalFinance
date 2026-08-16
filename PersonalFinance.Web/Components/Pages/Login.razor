@@ -94,7 +94,7 @@
             await Toasts.SuccessAsync("Signed in.");
 
             // Full page load so the next circuit restores the token before AuthorizeRouteView runs
-            await Js.InvokeVoidAsync("eval", "window.location.href='/'");
+            Navigation.NavigateTo("/", forceLoad: true);
         }
         catch (Exception ex)
         {

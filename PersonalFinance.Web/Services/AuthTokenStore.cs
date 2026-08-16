@@ -71,11 +71,17 @@ public class AuthTokenStore
         {
             try
             {
-                // Prefer localStorage (remember me), then sessionStorage
-                var json = await _js.InvokeAsync<string?>("localStorage.getItem", StorageKey);
-                var fromLocal = !string.IsNullOrWhiteSpace(json);
-                if (!fromLocal)
-                    json = await _js.InvokeAsync<string?>("sessionStorage.getItem", StorageKey);
+                // Prefer dedicated helper (same key as login JS write)
+                var loaded = await _js.InvokeAsync<AuthLoadResult?>("pfAuth.loadAuth");
+                var json = loaded?.Json;
+                var fromLocal = loaded?.Remember == true;
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    json = await _js.InvokeAsync<string?>("localStorage.getItem", StorageKey);
+                    fromLocal = !string.IsNullOrWhiteSpace(json);
+                    if (string.IsNullOrWhiteSpace(json))
+                        json = await _js.InvokeAsync<string?>("sessionStorage.getItem", StorageKey);
+                }
 
                 _restoredFromBrowser = true;
                 if (string.IsNullOrWhiteSpace(json)) return;
@@ -85,19 +91,29 @@ public class AuthTokenStore
                 var stored = JsonSerializer.Deserialize<StoredAuth>(json, JsonOptions);
                 if (stored is null || string.IsNullOrWhiteSpace(stored.Token)) return;
 
-                var expires = stored.ExpiresAt.Kind == DateTimeKind.Unspecified
-                    ? DateTime.SpecifyKind(stored.ExpiresAt, DateTimeKind.Utc)
-                    : stored.ExpiresAt.ToUniversalTime();
+                // Missing/default expiresAt must NOT wipe a valid token (common after JS save)
+                DateTime expires;
+                if (stored.ExpiresAt == default || stored.ExpiresAt.Year < 2020)
+                {
+                    expires = DateTime.UtcNow.AddHours(8);
+                }
+                else
+                {
+                    expires = stored.ExpiresAt.Kind == DateTimeKind.Unspecified
+                        ? DateTime.SpecifyKind(stored.ExpiresAt, DateTimeKind.Utc)
+                        : stored.ExpiresAt.ToUniversalTime();
+                }
 
-                // Access expired: keep email/user markers only if remember — refresh cookie will renew
+                // Truly expired access token
                 if (expires <= DateTime.UtcNow.AddMinutes(-1))
                 {
                     if (!fromLocal)
                     {
-                        await ClearPersistedAsync();
+                        // Keep storage — refresh may still work; do not clear here
+                        Email = stored.Email;
+                        UserId = stored.UserId;
                         return;
                     }
-                    // Remember me: drop access; AuthRestorer will call /refresh (httpOnly cookie)
                     Email = stored.Email;
                     UserId = stored.UserId;
                     return;
@@ -139,19 +155,17 @@ public class AuthTokenStore
         {
             try
             {
-                // Always clear both first so we don't leave stale copies
-                await _js.InvokeVoidAsync("sessionStorage.removeItem", StorageKey);
-                await _js.InvokeVoidAsync("localStorage.removeItem", StorageKey);
-
-                if (RememberMe)
-                    await _js.InvokeVoidAsync("localStorage.setItem", StorageKey, payload);
-                else
-                    await _js.InvokeVoidAsync("sessionStorage.setItem", StorageKey, payload);
-
-                await _js.InvokeVoidAsync(
-                    RememberMe ? "localStorage.setItem" : "sessionStorage.setItem",
-                    PreferenceKey,
-                    RememberMe ? "1" : "0");
+                var saved = await _js.InvokeAsync<bool>("pfAuth.saveAuth", payload, RememberMe);
+                if (!saved)
+                {
+                    // Fallback direct storage APIs
+                    await _js.InvokeVoidAsync("sessionStorage.removeItem", StorageKey);
+                    await _js.InvokeVoidAsync("localStorage.removeItem", StorageKey);
+                    if (RememberMe)
+                        await _js.InvokeVoidAsync("localStorage.setItem", StorageKey, payload);
+                    else
+                        await _js.InvokeVoidAsync("sessionStorage.setItem", StorageKey, payload);
+                }
 
                 _restoredFromBrowser = true;
                 return;
@@ -178,6 +192,12 @@ public class AuthTokenStore
             catch (JSDisconnectedException) { return; }
             catch (JSException) { await Task.Delay(50 * (attempt + 1)); }
         }
+    }
+
+    private sealed class AuthLoadResult
+    {
+        public string? Json { get; set; }
+        public bool Remember { get; set; }
     }
 
     private sealed class StoredAuth
