@@ -41,6 +41,7 @@ builder.Services.AddScoped<ServerAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<ServerAuthenticationStateProvider>());
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<AuthBootstrap>();
 builder.Services.AddScoped<ToastService>();
 builder.Services.AddScoped<ConfirmService>();
 // Empty string in appsettings is not null — treat whitespace as missing.

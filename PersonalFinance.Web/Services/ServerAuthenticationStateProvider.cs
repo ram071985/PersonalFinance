@@ -12,7 +12,14 @@ public class ServerAuthenticationStateProvider : AuthenticationStateProvider
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
-        await _tokenStore.EnsureRestoredAsync();
+        // Retry restore — first call often happens before JS is ready
+        for (var i = 0; i < 8; i++)
+        {
+            await _tokenStore.EnsureRestoredAsync();
+            if (_tokenStore.IsAuthenticated)
+                break;
+            await Task.Delay(40 * (i + 1));
+        }
 
         if (!_tokenStore.IsAuthenticated)
             return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));

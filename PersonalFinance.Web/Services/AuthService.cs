@@ -102,7 +102,8 @@ public class AuthService
             await _tokenStore.EnsureRestoredAsync();
 
             var result = await _js.InvokeAsync<AuthFetchResult>("pfAuth.refresh", ApiBase);
-            if (!result.Ok)
+            // Only clear session on definitive auth rejection — not on CORS/network blips
+            if (result.Status == 401 || result.Status == 403)
             {
                 _tokenStore.Clear();
                 await _tokenStore.ClearPersistedAsync();
@@ -110,13 +111,11 @@ public class AuthService
                 return false;
             }
 
-            if (!TryParseAuth(result.Text, out var token, out var email, out var userId, out var expires, out _))
-            {
-                _tokenStore.Clear();
-                await _tokenStore.ClearPersistedAsync();
-                _authState.NotifyAuthChanged();
+            if (!result.Ok)
                 return false;
-            }
+
+            if (!TryParseAuth(result.Text, out var token, out var email, out var userId, out var expires, out _))
+                return false;
 
             _tokenStore.Set(token, refreshToken: null, email, userId, expires);
             await _tokenStore.PersistAsync();

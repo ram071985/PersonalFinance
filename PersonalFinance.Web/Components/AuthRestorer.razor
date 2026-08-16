@@ -8,13 +8,16 @@
     {
         if (!firstRender) return;
 
-        await TokenStore.EnsureRestoredAsync();
+        for (var i = 0; i < 8; i++)
+        {
+            await TokenStore.EnsureRestoredAsync();
+            if (TokenStore.IsAuthenticated)
+                break;
+            await Task.Delay(40);
+        }
 
         if (!TokenStore.IsAuthenticated)
-        {
-            // httpOnly refresh cookie may still be valid (especially Remember me)
             await Auth.TryRefreshAsync();
-        }
 
         if (TokenStore.IsAuthenticated)
             AuthState.NotifyAuthChanged();

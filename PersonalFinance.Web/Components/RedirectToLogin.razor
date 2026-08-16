@@ -3,7 +3,8 @@
 @inject AuthTokenStore TokenStore
 @inject AuthService Auth
 @inject ServerAuthenticationStateProvider AuthState
-@inject IJSRuntime Js
+
+<p class="content" style="padding:2rem;text-align:center;opacity:0.8;">Checking sign-in…</p>
 
 @code {
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -15,25 +16,27 @@
             || relative.StartsWith("register", StringComparison.OrdinalIgnoreCase))
             return;
 
-        // Give JS storage time on a fresh circuit after login
-        for (var i = 0; i < 8; i++)
+        for (var i = 0; i < 10; i++)
         {
             await TokenStore.EnsureRestoredAsync();
             if (TokenStore.IsAuthenticated)
-                break;
-            await Auth.TryRefreshAsync();
-            if (TokenStore.IsAuthenticated)
-                break;
+            {
+                AuthState.NotifyAuthChanged();
+                return;
+            }
             await Task.Delay(50);
         }
 
+        // Access token missing — try refresh cookie once (does not wipe storage on network errors)
+        await Auth.TryRefreshAsync();
         if (TokenStore.IsAuthenticated)
         {
             AuthState.NotifyAuthChanged();
             return;
         }
 
-        var target = $"/login?returnUrl={Uri.EscapeDataString(relative)}";
-        await Js.InvokeVoidAsync("eval", $"window.location.assign('{target}')");
+        Navigation.NavigateTo(
+            $"/login?returnUrl={Uri.EscapeDataString(relative)}",
+            forceLoad: false);
     }
 }

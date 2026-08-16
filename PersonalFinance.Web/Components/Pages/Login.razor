@@ -65,24 +65,6 @@
     private string? _errorMessage;
     private bool _isSubmitting;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender) return;
-
-        await TokenStore.EnsureRestoredAsync();
-        if (!TokenStore.IsAuthenticated)
-        {
-            await Task.Delay(50);
-            await TokenStore.EnsureRestoredAsync();
-        }
-
-        if (!TokenStore.IsAuthenticated)
-            return;
-
-        ((ServerAuthenticationStateProvider)AuthStateProvider).NotifyAuthChanged();
-        await GoHomeAsync();
-    }
-
     private async Task HandleLoginAsync()
     {
         _errorMessage = null;
@@ -97,21 +79,22 @@
                 return;
             }
 
-            // Persist again and prove browser storage has the token
             await TokenStore.PersistAsync();
-            await Task.Delay(50);
+            await Task.Delay(100);
             await TokenStore.EnsureRestoredAsync();
 
             if (!TokenStore.IsAuthenticated)
             {
-                _errorMessage = "Login succeeded but token was not stored (sessionStorage/localStorage blocked?).";
+                _errorMessage = "Login succeeded but token was not stored (check browser storage).";
                 await Toasts.ErrorAsync(_errorMessage);
                 return;
             }
 
             ((ServerAuthenticationStateProvider)AuthStateProvider).NotifyAuthChanged();
             await Toasts.SuccessAsync("Signed in.");
-            await GoHomeAsync();
+
+            // Full page load so the next circuit restores the token before AuthorizeRouteView runs
+            await Js.InvokeVoidAsync("eval", "window.location.href='/'");
         }
         catch (Exception ex)
         {
@@ -122,22 +105,5 @@
         {
             _isSubmitting = false;
         }
-    }
-
-    private async Task GoHomeAsync()
-    {
-        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
-        var returnUrl = query.TryGetValue("returnUrl", out var r) ? r.ToString() : "/";
-        if (string.IsNullOrWhiteSpace(returnUrl)
-            || returnUrl.StartsWith("login", StringComparison.OrdinalIgnoreCase)
-            || returnUrl.StartsWith("register", StringComparison.OrdinalIgnoreCase))
-            returnUrl = "/";
-
-        if (!returnUrl.StartsWith('/'))
-            returnUrl = "/" + returnUrl;
-
-        // Hard navigation avoids AuthorizeRouteView race on the same circuit
-        await Js.InvokeVoidAsync("eval", $"window.location.assign('{returnUrl}')");
     }
 }
