@@ -20,10 +20,22 @@ if (!builder.Environment.IsEnvironment("Testing"))
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Minimal auth for Blazor AuthorizeRouteView.
-// Real identity = JWT in sessionStorage (AuthTokenStore), not cookies.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie();
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/login";
+        options.AccessDeniedPath = "/login";
+        options.Events.OnRedirectToLogin = ctx =>
+        {
+            ctx.Response.Redirect("/login");
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = ctx =>
+        {
+            ctx.Response.Redirect("/login");
+            return Task.CompletedTask;
+        };
+    });
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 

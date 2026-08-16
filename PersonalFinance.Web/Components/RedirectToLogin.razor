@@ -27,7 +27,6 @@
             await Task.Delay(50);
         }
 
-        // Access token missing — try refresh cookie once (does not wipe storage on network errors)
         await Auth.TryRefreshAsync();
         if (TokenStore.IsAuthenticated)
         {

@@ -9,7 +9,6 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 @inject AuthTokenStore TokenStore
-@inject IJSRuntime Js
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Login – Personal Finance</PageTitle>
@@ -84,10 +83,8 @@
             }
 
             ((ServerAuthenticationStateProvider)AuthStateProvider).NotifyAuthChanged();
-
-            // Do not call pfAuth.goHome — may be missing from cached JS.
-            // forceLoad: true is the supported Blazor full-page navigation.
-            Navigation.NavigateTo("/", forceLoad: true);
+            // Soft navigate keeps the circuit; avoids full-document redirects to /Account/Login
+            Navigation.NavigateTo("/", forceLoad: false);
         }
         catch (Exception ex)
         {
