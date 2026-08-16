@@ -2,20 +2,6 @@ window.pfAuth = {
     storageKey: 'pf.auth.v1',
     preferenceKey: 'pf.auth.remember',
 
-    async post(url, body) {
-        const res = await fetch(url, {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: body ? JSON.stringify(body) : undefined
-        });
-        const text = await res.text();
-        let data = null;
-        try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-        return { status: res.status, ok: res.ok, data, text };
-    },
-
-    /** Write auth payload to session or local storage (called from login/register). */
     saveAuth(payload, rememberMe) {
         try {
             const json = typeof payload === 'string' ? payload : JSON.stringify(payload);
@@ -38,12 +24,12 @@ window.pfAuth = {
     loadAuth() {
         try {
             let json = localStorage.getItem(this.storageKey);
-            let remember = true;
+            let remember = !!json;
             if (!json) {
                 json = sessionStorage.getItem(this.storageKey);
                 remember = false;
             }
-            return { json, remember };
+            return { json: json || null, remember: !!remember };
         } catch (e) {
             console.error('pfAuth.loadAuth failed', e);
             return { json: null, remember: false };
@@ -59,49 +45,118 @@ window.pfAuth = {
         } catch { /* ignore */ }
     },
 
-    async login(apiBase, email, password, rememberMe) {
-        const result = await this.post(`${apiBase}/api/auth/login`, {
-            email,
-            password,
-            rememberMe: !!rememberMe
+    async post(url, body) {
+        const res = await fetch(url, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: body ? JSON.stringify(body) : undefined
         });
-        if (result.ok && result.data && result.data.token) {
-            const payload = {
-                token: result.data.token,
-                refreshToken: result.data.refreshToken || null,
-                email: result.data.email || email,
-                userId: result.data.userId || '',
-                expiresAt: result.data.expiresAt || new Date(Date.now() + 3600000).toISOString()
+        const text = await res.text();
+        let data = null;
+        try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+        return { status: res.status, ok: res.ok, data, text };
+    },
+
+    /**
+     * Returns a flat object for reliable Blazor JS interop:
+     * { status, ok, token, email, userId, expiresAt, error, text }
+     */
+    async login(apiBase, email, password, rememberMe) {
+        try {
+            if (!apiBase) {
+                return { status: 0, ok: false, token: null, email: null, userId: null, expiresAt: null, error: 'ApiBaseUrl is empty', text: '' };
+            }
+            const base = apiBase.replace(/\/$/, '');
+            const result = await this.post(`${base}/api/auth/login`, {
+                email,
+                password,
+                rememberMe: !!rememberMe
+            });
+
+            const token = result.data?.token || result.data?.accessToken || null;
+            const userEmail = result.data?.email || email;
+            const userId = result.data?.userId || result.data?.id || '';
+            let expiresAt = result.data?.expiresAt || null;
+            if (!expiresAt && token) {
+                expiresAt = new Date(Date.now() + 8 * 3600 * 1000).toISOString();
+            }
+
+            if (result.ok && token) {
+                this.saveAuth({
+                    token,
+                    refreshToken: null,
+                    email: userEmail,
+                    userId,
+                    expiresAt
+                }, !!rememberMe);
+            }
+
+            return {
+                status: result.status,
+                ok: !!(result.ok && token),
+                token,
+                email: userEmail,
+                userId,
+                expiresAt,
+                error: result.ok && !token ? 'No token in API response' : null,
+                text: result.text
             };
-            this.saveAuth(payload, !!rememberMe);
+        } catch (e) {
+            console.error('pfAuth.login failed', e);
+            return {
+                status: 0,
+                ok: false,
+                token: null,
+                email: null,
+                userId: null,
+                expiresAt: null,
+                error: e.message || String(e),
+                text: ''
+            };
         }
-        return result;
     },
 
     async register(apiBase, email, password) {
-        const result = await this.post(`${apiBase}/api/auth/register`, { email, password });
-        if (result.ok && result.data && result.data.token) {
-            const payload = {
-                token: result.data.token,
-                refreshToken: result.data.refreshToken || null,
-                email: result.data.email || email,
-                userId: result.data.userId || '',
-                expiresAt: result.data.expiresAt || new Date(Date.now() + 3600000).toISOString()
+        try {
+            const base = (apiBase || '').replace(/\/$/, '');
+            const result = await this.post(`${base}/api/auth/register`, { email, password });
+            const token = result.data?.token || null;
+            const userEmail = result.data?.email || email;
+            const userId = result.data?.userId || '';
+            let expiresAt = result.data?.expiresAt || null;
+            if (!expiresAt && token) {
+                expiresAt = new Date(Date.now() + 8 * 3600 * 1000).toISOString();
+            }
+            if (result.ok && token) {
+                this.saveAuth({ token, refreshToken: null, email: userEmail, userId, expiresAt }, false);
+            }
+            return {
+                status: result.status,
+                ok: !!(result.ok && token),
+                token,
+                email: userEmail,
+                userId,
+                expiresAt,
+                error: result.ok && !token ? 'No token in API response' : null,
+                text: result.text
             };
-            this.saveAuth(payload, false);
+        } catch (e) {
+            return { status: 0, ok: false, token: null, email: null, userId: null, expiresAt: null, error: e.message, text: '' };
         }
-        return result;
     },
 
     refresh(apiBase) {
-        return this.post(`${apiBase}/api/auth/refresh`, {});
+        const base = (apiBase || '').replace(/\/$/, '');
+        return this.post(`${base}/api/auth/refresh`, {});
     },
 
     logout(apiBase, accessToken) {
         this.clearAuth();
+        const base = (apiBase || '').replace(/\/$/, '');
         const headers = { 'Accept': 'application/json' };
         if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
-        return fetch(`${apiBase}/api/auth/logout`, {
+        return fetch(`${base}/api/auth/logout`, {
             method: 'POST',
             credentials: 'include',
             headers

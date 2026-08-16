@@ -45,27 +45,59 @@ public class AuthService
             if (result.Status == 401)
                 return (false, "Invalid email or password.");
 
-            if (!result.Ok || string.IsNullOrWhiteSpace(result.Token))
+            // Prefer flat interop fields; fall back to parsing response body (older JS / interop casing)
+            var token = result.Token;
+            var userEmail = result.Email;
+            var userId = result.UserId;
+            var expires = DateTime.UtcNow.AddHours(8);
+
+            if (string.IsNullOrWhiteSpace(token) && !string.IsNullOrWhiteSpace(result.Text))
+            {
+                if (TryParseAuth(result.Text, out var parsedToken, out var parsedEmail, out var parsedUserId, out var parsedExpires, out _))
+                {
+                    token = parsedToken;
+                    userEmail = parsedEmail;
+                    userId = parsedUserId;
+                    expires = parsedExpires;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(token))
             {
                 if (!string.IsNullOrWhiteSpace(result.Error))
                     return (false, result.Error);
                 if (result.Status == 0)
                     return (false, $"Login failed — check ApiBaseUrl ({ApiBase}) and browser console.");
-                return (false, $"Login failed ({result.Status}): {result.Text}");
+                if (result.Status == 401)
+                    return (false, "Invalid email or password.");
+                return (false, $"Login failed ({result.Status}): no token in response.");
             }
 
-            var expires = DateTime.UtcNow.AddHours(8);
             if (!string.IsNullOrWhiteSpace(result.ExpiresAt) &&
-                DateTime.TryParse(result.ExpiresAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var parsed))
+                DateTime.TryParse(result.ExpiresAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var expParsed))
             {
-                expires = parsed.Kind == DateTimeKind.Unspecified
-                    ? DateTime.SpecifyKind(parsed, DateTimeKind.Utc)
-                    : parsed.ToUniversalTime();
+                expires = expParsed.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(expParsed, DateTimeKind.Utc)
+                    : expParsed.ToUniversalTime();
             }
 
             _tokenStore.SetRememberMe(rememberMe);
-            _tokenStore.Set(result.Token, refreshToken: null, result.Email ?? email, result.UserId ?? "", expires);
+            _tokenStore.Set(token, refreshToken: null, userEmail ?? email, userId ?? "", expires);
             await _tokenStore.PersistAsync();
+            // Also force browser storage via JS helper (same payload shape as authInterop)
+            try
+            {
+                await _js.InvokeAsync<bool>("pfAuth.saveAuth", new
+                {
+                    token,
+                    refreshToken = (string?)null,
+                    email = userEmail ?? email,
+                    userId = userId ?? "",
+                    expiresAt = expires.ToUniversalTime().ToString("o")
+                }, rememberMe);
+            }
+            catch { /* non-fatal */ }
+
             _authState.NotifyAuthChanged();
             return (true, null);
         }
