@@ -9,18 +9,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="10.0.10" />
-        <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.10" />
+        <!-- Do NOT pin Microsoft.AspNetCore.* packages — they must match the App Service runtime.
+             Pinning 10.0.10 against a 10.0.9 runtime causes BadImageFormatException on CascadingAuthentication. -->
         <PackageReference Include="Azure.Extensions.AspNetCore.Configuration.Secrets" Version="1.4.0" />
         <PackageReference Include="Azure.Identity" Version="1.14.2" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\PersonalFinance.Core\PersonalFinance.Core.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="wwwroot\lib\" />
     </ItemGroup>
 
 </Project>
