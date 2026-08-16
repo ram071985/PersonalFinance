@@ -69,8 +69,6 @@
     {
         _errorMessage = null;
         _isSubmitting = true;
-        StateHasChanged();
-
         try
         {
             var (success, error) = await Auth.LoginAsync(
@@ -87,15 +85,9 @@
 
             ((ServerAuthenticationStateProvider)AuthStateProvider).NotifyAuthChanged();
 
-            // Always leave /login after a successful token — no extra checks that can block navigation
-            try
-            {
-                await Js.InvokeVoidAsync("pfAuth.goHome");
-            }
-            catch
-            {
-                Navigation.NavigateTo("/", forceLoad: true);
-            }
+            // Do not call pfAuth.goHome — may be missing from cached JS.
+            // forceLoad: true is the supported Blazor full-page navigation.
+            Navigation.NavigateTo("/", forceLoad: true);
         }
         catch (Exception ex)
         {

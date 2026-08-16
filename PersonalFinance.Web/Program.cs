@@ -6,7 +6,6 @@ using PersonalFinance.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Azure Key Vault when KeyVault:Uri is set (App Service + Managed Identity).
 if (!builder.Environment.IsEnvironment("Testing"))
 {
     var keyVaultUri = builder.Configuration["KeyVault:Uri"];
@@ -21,11 +20,24 @@ if (!builder.Environment.IsEnvironment("Testing"))
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Cookie scheme satisfies IAuthenticationService; real user state is JWT via AuthenticationStateProvider.
+// Cookie scheme only so IAuthenticationService resolves for AuthorizeRouteView.
+// Real sign-in state is JWT in sessionStorage via ServerAuthenticationStateProvider.
+// Do NOT call UseAuthentication/UseAuthorization — that causes
+// /login?ReturnUrl=%2F redirects with no auth cookie.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
         options.LoginPath = "/login";
+        options.Events.OnRedirectToLogin = ctx =>
+        {
+            ctx.Response.StatusCode = 401;
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = ctx =>
+        {
+            ctx.Response.StatusCode = 403;
+            return Task.CompletedTask;
+        };
     });
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
@@ -64,14 +76,14 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
-// Azure terminates TLS at the front door; container listens on HTTP :8080 only.
 if (!app.Environment.IsProduction())
     app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 app.UseAntiforgery();
-app.UseAuthentication();
-app.UseAuthorization();
+
+// Intentionally no UseAuthentication / UseAuthorization —
+// Blazor auth is AuthenticationStateProvider + AuthorizeRouteView only.
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
