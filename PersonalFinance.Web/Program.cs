@@ -20,25 +20,10 @@ if (!builder.Environment.IsEnvironment("Testing"))
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Cookie scheme only so IAuthenticationService resolves for AuthorizeRouteView.
-// Real sign-in state is JWT in sessionStorage via ServerAuthenticationStateProvider.
-// Do NOT call UseAuthentication/UseAuthorization — that causes
-// /login?ReturnUrl=%2F redirects with no auth cookie.
+// Minimal auth for Blazor AuthorizeRouteView.
+// Real identity = JWT in sessionStorage (AuthTokenStore), not cookies.
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
-    {
-        options.LoginPath = "/login";
-        options.Events.OnRedirectToLogin = ctx =>
-        {
-            ctx.Response.StatusCode = 401;
-            return Task.CompletedTask;
-        };
-        options.Events.OnRedirectToAccessDenied = ctx =>
-        {
-            ctx.Response.StatusCode = 403;
-            return Task.CompletedTask;
-        };
-    });
+    .AddCookie();
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 
@@ -82,8 +67,7 @@ if (!app.Environment.IsProduction())
 app.UseStaticFiles();
 app.UseAntiforgery();
 
-// Intentionally no UseAuthentication / UseAuthorization —
-// Blazor auth is AuthenticationStateProvider + AuthorizeRouteView only.
+// NO UseAuthentication / UseAuthorization — avoids /login?ReturnUrl=%2F and cookie 401s
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
