@@ -4,12 +4,12 @@
 @using PersonalFinance.Web.Services
 @attribute [AllowAnonymous]
 @layout AuthLayout
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject AuthService Auth
 @inject ToastService Toasts
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 @inject AuthTokenStore TokenStore
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Login – Personal Finance</PageTitle>
 
@@ -33,13 +33,13 @@
         <div class="form-group">
             <label class="form-label" for="email">Email</label>
             <InputText id="email" class="form-control" @bind-Value="_model.Email" autocomplete="username" data-focus-on-nav />
-            <ValidationMessage For="() => _model.Email" class="text-danger" style="font-size:0.8rem;margin-top:0.25rem;" />
+            <ValidationMessage For="() => _model.Email" class="text-red-400" style="font-size:0.8rem;margin-top:0.25rem;" />
         </div>
 
         <div class="form-group">
             <label class="form-label" for="password">Password</label>
             <InputText id="password" type="password" class="form-control" @bind-Value="_model.Password" autocomplete="current-password" />
-            <ValidationMessage For="() => _model.Password" class="text-danger" style="font-size:0.8rem;margin-top:0.25rem;" />
+            <ValidationMessage For="() => _model.Password" class="text-red-400" style="font-size:0.8rem;margin-top:0.25rem;" />
         </div>
 
         <div class="form-group remember-row">
@@ -123,8 +123,10 @@
                 return;
             }
 
+            ((ServerAuthenticationStateProvider)AuthStateProvider).NotifyAuthChanged();
             await Toasts.SuccessAsync("Signed in.");
-            Navigation.NavigateTo("/", forceLoad: false, replace: true);
+            // forceLoad so AuthorizeRouteView sees authenticated state on a fresh circuit
+            Navigation.NavigateTo("/", forceLoad: true);
         }
         catch (Exception ex)
         {
