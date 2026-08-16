@@ -1,6 +1,5 @@
 name: Deploy Web
 
-# Azure deploy only when code is pushed to main
 on:
   push:
     branches:
@@ -9,6 +8,7 @@ on:
       - 'PersonalFinance.Web/**'
       - 'PersonalFinance.Core/**'
       - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
 
 env:
   AZURE_WEBAPP_NAME: personalfinance-web
@@ -28,14 +28,24 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore
-        run: dotnet restore ${{ env.PROJECT_PATH }}
-
-      - name: Build
-        run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
-
       - name: Publish
-        run: dotnet publish ${{ env.PROJECT_PATH }} -c Release -o ./publish --no-build
+        run: |
+          rm -rf ./publish
+          dotnet publish "${{ env.PROJECT_PATH }}" -c Release -o ./publish /p:UseAppHost=false
+          echo "=== Publish output ==="
+          ls -la ./publish
+          test -f ./publish/PersonalFinance.Web.dll || {
+            echo "ERROR: PersonalFinance.Web.dll was not published"
+            exit 1
+          }
+          test -f ./publish/PersonalFinance.Web.runtimeconfig.json || {
+            echo "ERROR: PersonalFinance.Web.runtimeconfig.json missing"
+            exit 1
+          }
+          # Do not ship a second app assembly that confuses Azure startup detection
+          rm -f ./publish/PersonalFinance.dll \
+                ./publish/PersonalFinance.runtimeconfig.json \
+                ./publish/PersonalFinance.deps.json
 
       - name: Login to Azure
         uses: azure/login@v2
