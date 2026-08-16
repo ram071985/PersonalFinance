@@ -3,6 +3,7 @@
 @inject AuthTokenStore TokenStore
 @inject AuthService Auth
 @inject ServerAuthenticationStateProvider AuthState
+@inject IJSRuntime Js
 
 @code {
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -14,10 +15,17 @@
             || relative.StartsWith("register", StringComparison.OrdinalIgnoreCase))
             return;
 
-        await TokenStore.EnsureRestoredAsync();
-
-        if (!TokenStore.IsAuthenticated)
+        // Give JS storage time on a fresh circuit after login
+        for (var i = 0; i < 8; i++)
+        {
+            await TokenStore.EnsureRestoredAsync();
+            if (TokenStore.IsAuthenticated)
+                break;
             await Auth.TryRefreshAsync();
+            if (TokenStore.IsAuthenticated)
+                break;
+            await Task.Delay(50);
+        }
 
         if (TokenStore.IsAuthenticated)
         {
@@ -25,8 +33,7 @@
             return;
         }
 
-        Navigation.NavigateTo(
-            $"/login?returnUrl={Uri.EscapeDataString(relative)}",
-            forceLoad: false);
+        var target = $"/login?returnUrl={Uri.EscapeDataString(relative)}";
+        await Js.InvokeVoidAsync("eval", $"window.location.assign('{target}')");
     }
 }
