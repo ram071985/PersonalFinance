@@ -36,6 +36,10 @@ window.pfAuth = {
         }
     },
 
+    goHome() {
+        window.location.replace('/');
+    },
+
     clearAuth() {
         try {
             sessionStorage.removeItem(this.storageKey);

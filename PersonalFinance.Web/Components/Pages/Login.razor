@@ -69,9 +69,15 @@
     {
         _errorMessage = null;
         _isSubmitting = true;
+        StateHasChanged();
+
         try
         {
-            var (success, error) = await Auth.LoginAsync(_model.Email.Trim(), _model.Password, _model.RememberMe);
+            var (success, error) = await Auth.LoginAsync(
+                _model.Email.Trim(),
+                _model.Password,
+                _model.RememberMe);
+
             if (!success)
             {
                 _errorMessage = error ?? "Login failed.";
@@ -79,22 +85,17 @@
                 return;
             }
 
-            await TokenStore.PersistAsync();
-            await Task.Delay(100);
-            await TokenStore.EnsureRestoredAsync();
-
-            if (!TokenStore.IsAuthenticated)
-            {
-                _errorMessage = "Login succeeded but token was not stored (check browser storage).";
-                await Toasts.ErrorAsync(_errorMessage);
-                return;
-            }
-
             ((ServerAuthenticationStateProvider)AuthStateProvider).NotifyAuthChanged();
-            await Toasts.SuccessAsync("Signed in.");
 
-            // Full page load so the next circuit restores the token before AuthorizeRouteView runs
-            Navigation.NavigateTo("/", forceLoad: true);
+            // Always leave /login after a successful token — no extra checks that can block navigation
+            try
+            {
+                await Js.InvokeVoidAsync("pfAuth.goHome");
+            }
+            catch
+            {
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
         }
         catch (Exception ex)
         {
