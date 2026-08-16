@@ -8,7 +8,6 @@
 @inject ToastService Toasts
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
-@inject AuthTokenStore TokenStore
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Login – Personal Finance</PageTitle>
@@ -25,6 +24,10 @@
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
         <div class="auth-error" style="white-space:pre-wrap;">@_errorMessage</div>
+    }
+    @if (!string.IsNullOrEmpty(_infoMessage))
+    {
+        <div class="auth-error" style="white-space:pre-wrap;color:#86efac;">@_infoMessage</div>
     }
 
     <EditForm Model="_model" OnValidSubmit="HandleLoginAsync">
@@ -62,11 +65,13 @@
 @code {
     private readonly LoginFormModel _model = new();
     private string? _errorMessage;
+    private string? _infoMessage;
     private bool _isSubmitting;
 
     private async Task HandleLoginAsync()
     {
         _errorMessage = null;
+        _infoMessage = null;
         _isSubmitting = true;
         try
         {
@@ -78,18 +83,21 @@
             if (!success)
             {
                 _errorMessage = error ?? "Login failed.";
-                await Toasts.ErrorAsync(_errorMessage);
                 return;
             }
 
+            _infoMessage = "Signed in — loading dashboard…";
+            StateHasChanged();
+
             ((ServerAuthenticationStateProvider)AuthStateProvider).NotifyAuthChanged();
-            // Soft navigate keeps the circuit; avoids full-document redirects to /Account/Login
-            Navigation.NavigateTo("/", forceLoad: false);
+            await Task.Delay(50);
+
+            // forceLoad so we leave AuthLayout and load dashboard with a fresh circuit
+            Navigation.NavigateTo("/", forceLoad: true);
         }
         catch (Exception ex)
         {
             _errorMessage = ex.Message;
-            await Toasts.ErrorAsync(ex.Message);
         }
         finally
         {
