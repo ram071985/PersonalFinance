@@ -1,139 +1,30 @@
-﻿@page "/login"
-@using Microsoft.AspNetCore.Components.Authorization
-@using PersonalFinance.Web.Models
-@using PersonalFinance.Web.Services
-@attribute [AllowAnonymous]
-@layout AuthLayout
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
-@inject AuthService Auth
-@inject ToastService Toasts
-@inject NavigationManager Navigation
-@inject AuthenticationStateProvider AuthStateProvider
-@inject AuthTokenStore TokenStore
+﻿<!DOCTYPE html>
+<html lang="en">
 
-<PageTitle>Login – Personal Finance</PageTitle>
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <base href="/"/>
+    <ResourcePreloader/>
+    
+    
+    <!-- Icons only (not Bootstrap CSS). UI is Tailwind + app component classes. -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="@Assets["css/app.css"]"/>
+    <link rel="stylesheet" href="@Assets["PersonalFinance.styles.css"]"/>
+    <ImportMap/>
+    <link rel="icon" type="image/png" href="favicon.png"/>
+    <HeadOutlet />
+</head>
 
-<div class="auth-card">
-    <div class="auth-brand">
-        <span>💰</span>
-        <span>Personal Finance</span>
-    </div>
+<body>
+<Routes />
+<ReconnectModal/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="@Assets["js/chartInterop.js"]"></script>
+<script src="@Assets["js/authInterop.js"]"></script>
+<script src="@Assets["js/plaidLink.js"]"></script>
+<script src="@Assets["_framework/blazor.web.js"]"></script>
+</body>
 
-    <h1>Sign in</h1>
-    <p class="subtitle">Enter your credentials to access your accounts.</p>
-
-    @if (!string.IsNullOrEmpty(_errorMessage))
-    {
-        <div class="auth-error" style="white-space:pre-wrap;">@_errorMessage</div>
-    }
-
-    <EditForm Model="_model" OnValidSubmit="HandleLoginAsync">
-        <DataAnnotationsValidator />
-
-        <div class="form-group">
-            <label class="form-label" for="email">Email</label>
-            <InputText id="email" class="form-control" @bind-Value="_model.Email" autocomplete="username" data-focus-on-nav />
-            <ValidationMessage For="() => _model.Email" class="text-red-400" style="font-size:0.8rem;margin-top:0.25rem;" />
-        </div>
-
-        <div class="form-group">
-            <label class="form-label" for="password">Password</label>
-            <InputText id="password" type="password" class="form-control" @bind-Value="_model.Password" autocomplete="current-password" />
-            <ValidationMessage For="() => _model.Password" class="text-red-400" style="font-size:0.8rem;margin-top:0.25rem;" />
-        </div>
-
-        <div class="form-group remember-row">
-            <label class="remember-label" for="remember-me">
-                <InputCheckbox id="remember-me" @bind-Value="_model.RememberMe" class="remember-check" />
-                <span>Remember me</span>
-            </label>
-        </div>
-
-        <button type="submit" class="btn btn-primary btn-block" disabled="@_isSubmitting">
-            @(_isSubmitting ? "Signing in…" : "Sign in")
-        </button>
-    </EditForm>
-
-    <div class="auth-footer">
-        Don't have an account? <a href="/register">Create one</a>
-    </div>
-</div>
-
-@code {
-    private readonly LoginFormModel _model = new();
-    private string? _errorMessage;
-    private bool _isSubmitting;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender) return;
-
-        await TokenStore.EnsureRestoredAsync();
-        if (!TokenStore.IsAuthenticated)
-        {
-            await Task.Delay(50);
-            await TokenStore.EnsureRestoredAsync();
-        }
-
-        if (!TokenStore.IsAuthenticated)
-            return;
-
-        ((ServerAuthenticationStateProvider)AuthStateProvider).NotifyAuthChanged();
-
-        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
-        var returnUrl = query.TryGetValue("returnUrl", out var r) ? r.ToString() : "/";
-        if (string.IsNullOrWhiteSpace(returnUrl)
-            || returnUrl.StartsWith("login", StringComparison.OrdinalIgnoreCase)
-            || returnUrl.StartsWith("register", StringComparison.OrdinalIgnoreCase))
-            returnUrl = "/";
-
-        Navigation.NavigateTo(returnUrl, forceLoad: false, replace: true);
-    }
-
-    private async Task HandleLoginAsync()
-    {
-        _errorMessage = null;
-        _isSubmitting = true;
-        try
-        {
-            var (success, error) = await Auth.LoginAsync(_model.Email.Trim(), _model.Password, _model.RememberMe);
-            if (!success)
-            {
-                _errorMessage = error ?? "Login failed.";
-                await Toasts.ErrorAsync(_errorMessage);
-                return;
-            }
-
-            await TokenStore.PersistAsync();
-            await TokenStore.EnsureRestoredAsync();
-
-            if (!TokenStore.IsAuthenticated)
-            {
-                _errorMessage = "Login succeeded but token could not be saved in the browser. Check that sessionStorage is allowed.";
-                await Toasts.ErrorAsync(_errorMessage);
-                return;
-            }
-
-            var state = await AuthStateProvider.GetAuthenticationStateAsync();
-            if (state.User.Identity?.IsAuthenticated != true)
-            {
-                _errorMessage = "Token stored but auth state is still anonymous.";
-                await Toasts.ErrorAsync(_errorMessage);
-                return;
-            }
-
-            await Toasts.SuccessAsync("Signed in.");
-            Navigation.NavigateTo("/", forceLoad: false, replace: true);
-        }
-        catch (Exception ex)
-        {
-            _errorMessage = ex.Message;
-            await Toasts.ErrorAsync(ex.Message);
-        }
-        finally
-        {
-            _isSubmitting = false;
-        }
-    }
-}
+</html>

@@ -74,7 +74,10 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-app.UseHttpsRedirection();
+// Azure terminates TLS at the front door; container listens on HTTP :8080 only.
+if (!app.Environment.IsProduction())
+    app.UseHttpsRedirection();
+
 app.UseStaticFiles();
 app.UseAntiforgery();
 
