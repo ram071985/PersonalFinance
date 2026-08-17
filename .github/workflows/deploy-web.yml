@@ -31,7 +31,7 @@ jobs:
       - name: Publish
         run: |
           rm -rf ./publish
-          dotnet publish "${{ env.PROJECT_PATH }}" -c Release -o ./publish /p:UseAppHost=false
+          dotnet publish "${{ env.PROJECT_PATH }}" -c Release -o ./publish -r linux-x64 --self-contained true /p:PublishTrimmed=false
           echo "=== Publish output ==="
           ls -la ./publish
           test -f ./publish/PersonalFinance.Web.dll || {

@@ -25,24 +25,17 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     {
         options.LoginPath = "/login";
         options.AccessDeniedPath = "/login";
-        options.Events.OnRedirectToLogin = ctx =>
-        {
-            ctx.Response.Redirect("/login");
-            return Task.CompletedTask;
-        };
-        options.Events.OnRedirectToAccessDenied = ctx =>
-        {
-            ctx.Response.Redirect("/login");
-            return Task.CompletedTask;
-        };
     });
 builder.Services.AddAuthorization();
-builder.Services.AddCascadingAuthenticationState();
 
-builder.Services.AddScoped<AuthTokenStore>();
+// Single registration — avoids BadImageFormatException from factory delegates
+// across mismatched Microsoft.AspNetCore.Components.Authorization builds.
 builder.Services.AddScoped<ServerAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<ServerAuthenticationStateProvider>());
+builder.Services.AddCascadingAuthenticationState();
+
+builder.Services.AddScoped<AuthTokenStore>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ToastService>();
 builder.Services.AddScoped<ConfirmService>();
@@ -78,8 +71,6 @@ if (!app.Environment.IsProduction())
 
 app.UseStaticFiles();
 app.UseAntiforgery();
-
-// NO UseAuthentication / UseAuthorization — avoids /login?ReturnUrl=%2F and cookie 401s
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
