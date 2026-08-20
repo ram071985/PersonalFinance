@@ -90,10 +90,8 @@
             StateHasChanged();
 
             ((ServerAuthenticationStateProvider)AuthStateProvider).NotifyAuthChanged();
-            await Task.Delay(50);
-
-            // forceLoad so we leave AuthLayout and load dashboard with a fresh circuit
-            Navigation.NavigateTo("/", forceLoad: true);
+            await Task.Yield();
+            Navigation.NavigateTo("/");
         }
         catch (Exception ex)
         {
