@@ -8,7 +8,6 @@
 @inject ToastService Toasts
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Login – Personal Finance</PageTitle>
 
@@ -24,10 +23,6 @@
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
         <div class="auth-error" style="white-space:pre-wrap;">@_errorMessage</div>
-    }
-    @if (!string.IsNullOrEmpty(_infoMessage))
-    {
-        <div class="auth-error" style="white-space:pre-wrap;color:#86efac;">@_infoMessage</div>
     }
 
     <EditForm Model="_model" OnValidSubmit="HandleLoginAsync">
@@ -65,13 +60,11 @@
 @code {
     private readonly LoginFormModel _model = new();
     private string? _errorMessage;
-    private string? _infoMessage;
     private bool _isSubmitting;
 
     private async Task HandleLoginAsync()
     {
         _errorMessage = null;
-        _infoMessage = null;
         _isSubmitting = true;
         try
         {
@@ -83,23 +76,20 @@
             if (!success)
             {
                 _errorMessage = error ?? "Login failed.";
+                _isSubmitting = false;
                 return;
             }
 
-            _infoMessage = "Signed in — loading dashboard…";
-            StateHasChanged();
-
             ((ServerAuthenticationStateProvider)AuthStateProvider).NotifyAuthChanged();
-            await Task.Yield();
-            Navigation.NavigateTo("/");
         }
         catch (Exception ex)
         {
             _errorMessage = ex.Message;
-        }
-        finally
-        {
             _isSubmitting = false;
+            return;
         }
+
+        // NavigateTo throws NavigationException in .NET 8+ — must NOT be caught
+        Navigation.NavigateTo("/");
     }
 }
