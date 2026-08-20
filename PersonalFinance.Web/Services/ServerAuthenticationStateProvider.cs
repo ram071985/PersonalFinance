@@ -12,14 +12,7 @@ public class ServerAuthenticationStateProvider : AuthenticationStateProvider
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
-        // Retry restore — first call often happens before JS is ready
-        for (var i = 0; i < 8; i++)
-        {
-            await _tokenStore.EnsureRestoredAsync();
-            if (_tokenStore.IsAuthenticated)
-                break;
-            await Task.Delay(40 * (i + 1));
-        }
+        await _tokenStore.EnsureRestoredAsync();
 
         if (!_tokenStore.IsAuthenticated)
             return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
@@ -31,8 +24,8 @@ public class ServerAuthenticationStateProvider : AuthenticationStateProvider
             new(ClaimTypes.NameIdentifier, _tokenStore.UserId ?? "")
         };
 
-        var identity = new ClaimsIdentity(claims, authenticationType: "jwt");
-        return new AuthenticationState(new ClaimsPrincipal(identity));
+        return new AuthenticationState(
+            new ClaimsPrincipal(new ClaimsIdentity(claims, authenticationType: "jwt")));
     }
 
     public void NotifyAuthChanged() =>

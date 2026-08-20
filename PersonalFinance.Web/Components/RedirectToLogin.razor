@@ -1,41 +1,23 @@
 @using PersonalFinance.Web.Services
 @inject NavigationManager Navigation
 @inject AuthTokenStore TokenStore
-@inject AuthService Auth
 @inject ServerAuthenticationStateProvider AuthState
 
-<p class="content" style="padding:2rem;text-align:center;opacity:0.8;">Checking sign-in…</p>
-
 @code {
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (!firstRender) return;
-
         var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
         if (relative.StartsWith("login", StringComparison.OrdinalIgnoreCase)
             || relative.StartsWith("register", StringComparison.OrdinalIgnoreCase))
             return;
 
-        for (var i = 0; i < 10; i++)
-        {
-            await TokenStore.EnsureRestoredAsync();
-            if (TokenStore.IsAuthenticated)
-            {
-                AuthState.NotifyAuthChanged();
-                return;
-            }
-            await Task.Delay(50);
-        }
-
-        await Auth.TryRefreshAsync();
+        await TokenStore.EnsureRestoredAsync();
         if (TokenStore.IsAuthenticated)
         {
             AuthState.NotifyAuthChanged();
             return;
         }
 
-        Navigation.NavigateTo(
-            $"/login?returnUrl={Uri.EscapeDataString(relative)}",
-            forceLoad: false);
+        Navigation.NavigateTo("/login", replace: true);
     }
 }
