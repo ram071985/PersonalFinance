@@ -80,6 +80,10 @@ if (!app.Environment.IsProduction())
 app.UseStaticFiles();
 app.UseAntiforgery();
 
+// HTTP layer is anonymous. [Authorize] is enforced by AuthorizeRouteView (JWT),
+// not cookie challenge (/login?ReturnUrl=%2F → 400).
+app.MapGet("/Account/Login", () => Results.Redirect("/login"));
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AllowAnonymous();
