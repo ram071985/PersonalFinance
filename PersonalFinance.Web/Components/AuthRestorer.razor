@@ -1,23 +1,14 @@
 @using PersonalFinance.Web.Services
 @inject AuthTokenStore TokenStore
-@inject AuthService Auth
 @inject ServerAuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
 
 @code {
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
 
-        for (var i = 0; i < 8; i++)
-        {
-            await TokenStore.EnsureRestoredAsync();
-            if (TokenStore.IsAuthenticated)
-                break;
-            await Task.Delay(40);
-        }
-
-        if (!TokenStore.IsAuthenticated)
-            await Auth.TryRefreshAsync();
+        await TokenStore.EnsureRestoredAsync();
 
         if (TokenStore.IsAuthenticated)
             AuthState.NotifyAuthChanged();
