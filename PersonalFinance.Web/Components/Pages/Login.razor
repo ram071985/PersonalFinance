@@ -24,26 +24,32 @@
         <div class="auth-error" style="white-space:pre-wrap;">@_errorMessage</div>
     }
 
-    <div class="form-group">
-        <label class="form-label" for="email">Email</label>
-        <input id="email" class="form-control" @bind="_model.Email" autocomplete="username" data-focus-on-nav />
-    </div>
+    <EditForm Model="_model" OnValidSubmit="HandleLoginAsync">
+        <DataAnnotationsValidator />
 
-    <div class="form-group">
-        <label class="form-label" for="password">Password</label>
-        <input id="password" type="password" class="form-control" @bind="_model.Password" autocomplete="current-password" />
-    </div>
+        <div class="form-group">
+            <label class="form-label" for="email">Email</label>
+            <InputText id="email" class="form-control" @bind-Value="_model.Email" autocomplete="username" data-focus-on-nav />
+            <ValidationMessage For="() => _model.Email" />
+        </div>
 
-    <div class="form-group remember-row">
-        <label class="remember-label" for="remember-me">
-            <input id="remember-me" type="checkbox" @bind="_model.RememberMe" class="remember-check" />
-            <span>Remember me</span>
-        </label>
-    </div>
+        <div class="form-group">
+            <label class="form-label" for="password">Password</label>
+            <InputText id="password" type="password" class="form-control" @bind-Value="_model.Password" autocomplete="current-password" />
+            <ValidationMessage For="() => _model.Password" />
+        </div>
 
-    <button type="button" class="btn btn-primary btn-block" disabled="@_isSubmitting" @onclick="HandleLoginAsync">
-        @(_isSubmitting ? "Signing in…" : "Sign in")
-    </button>
+        <div class="form-group remember-row">
+            <label class="remember-label" for="remember-me">
+                <InputCheckbox id="remember-me" @bind-Value="_model.RememberMe" class="remember-check" />
+                <span>Remember me</span>
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" disabled="@_isSubmitting">
+            @(_isSubmitting ? "Signing in…" : "Sign in")
+        </button>
+    </EditForm>
 
     <div class="auth-footer">
         Don't have an account? <a href="/register">Create one</a>
