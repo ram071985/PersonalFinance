@@ -26,6 +26,16 @@
     Transactions sync automatically after linking and when you hit Sync.
 </p>
 
+@if (_hasPending)
+{
+    <div class="mb-6 rounded-xl border border-brand/40 bg-surface p-4">
+        <p class="text-sm text-foreground">Plaid finished, but the bank is not saved yet.</p>
+        <button type="button" class="page-action-btn mt-3" disabled="@_busy" @onclick="FinishPendingAsync">
+            Complete bank link
+        </button>
+    </div>
+}
+
 @if (_loading)
 {
     <LoadingSpinner Message="Loading connections…" />
@@ -74,38 +84,54 @@ else
     private bool _loading = true;
     private bool _busy;
 
+    private bool _hasPending;
+    private bool _pendingChecked;
+
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
+        if (_pendingChecked) return;
+        try
+        {
+            var peek = await Js.InvokeAsync<PlaidLinkResult?>("pfPlaid.peekPending");
+            _hasPending = peek is not null && !string.IsNullOrWhiteSpace(peek.PublicToken);
+            _pendingChecked = true;
+            if (_hasPending)
+                StateHasChanged();
+        }
+        catch (JSDisconnectedException) { }
+        catch (JSException) { }
+    }
+
+    private async Task FinishPendingAsync()
+    {
+        _busy = true;
         try
         {
             var pending = await Js.InvokeAsync<PlaidLinkResult?>("pfPlaid.takePending");
             if (pending is null || string.IsNullOrWhiteSpace(pending.PublicToken))
+            {
+                _hasPending = false;
+                await Toasts.ErrorAsync("No pending Plaid token in this tab.");
                 return;
+            }
 
-            _busy = true;
-            StateHasChanged();
             await Api.ExchangePlaidTokenAsync(new PlaidExchangeRequest
             {
                 PublicToken = pending.PublicToken,
                 InstitutionId = pending.InstitutionId,
                 InstitutionName = pending.InstitutionName
             });
+            _hasPending = false;
             await Toasts.SuccessAsync("Bank linked. Transactions imported.");
             await LoadAsync();
         }
-        catch (JSDisconnectedException) { }
         catch (Exception ex)
         {
             await Toasts.ErrorAsync(ex.Message);
         }
-        finally
-        {
-            _busy = false;
-            StateHasChanged();
-        }
+        finally { _busy = false; }
     }
 
     private async Task LoadAsync()
