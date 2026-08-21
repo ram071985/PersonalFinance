@@ -26,15 +26,12 @@
     Transactions sync automatically after linking and when you hit Sync.
 </p>
 
-@if (_hasPending)
-{
-    <div class="mb-6 rounded-xl border border-brand/40 bg-surface p-4">
-        <p class="text-sm text-foreground">Plaid finished, but the bank is not saved yet.</p>
-        <button type="button" class="page-action-btn mt-3" disabled="@_busy" @onclick="FinishPendingAsync">
-            Complete bank link
-        </button>
-    </div>
-}
+<div class="mb-6 rounded-xl border border-border bg-surface p-4">
+    <p class="text-sm text-foreground">If you already finished Chase in Plaid, complete the save here.</p>
+    <button type="button" class="page-action-btn mt-3" disabled="@_busy" @onclick="FinishPendingAsync">
+        Complete bank link
+    </button>
+</div>
 
 @if (_loading)
 {
@@ -109,21 +106,46 @@ else
         _busy = true;
         try
         {
-            var pending = await Js.InvokeAsync<PlaidLinkResult?>("pfPlaid.takePending");
-            if (pending is null || string.IsNullOrWhiteSpace(pending.PublicToken))
+            var raw = await Js.InvokeAsync<string?>("sessionStorage.getItem", "pf.plaid.pending");
+            if (string.IsNullOrWhiteSpace(raw))
             {
-                _hasPending = false;
-                await Toasts.ErrorAsync("No pending Plaid token in this tab.");
+                await Toasts.ErrorAsync("No pf.plaid.pending in this tab. Open Banks in the same tab you used for Chase.");
                 return;
             }
 
+            using var doc = System.Text.Json.JsonDocument.Parse(raw);
+            var root = doc.RootElement;
+            string? token = null;
+            foreach (var name in new[] { "publicToken", "PublicToken", "public_token" })
+            {
+                if (root.TryGetProperty(name, out var p) && p.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    token = p.GetString();
+                    if (!string.IsNullOrWhiteSpace(token)) break;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                await Toasts.ErrorAsync("Pending JSON has no public token: " + raw);
+                return;
+            }
+
+            string? instId = null;
+            string? instName = null;
+            foreach (var name in new[] { "institutionId", "InstitutionId" })
+                if (root.TryGetProperty(name, out var p)) instId = p.GetString();
+            foreach (var name in new[] { "institutionName", "InstitutionName" })
+                if (root.TryGetProperty(name, out var p)) instName = p.GetString();
+
             await Api.ExchangePlaidTokenAsync(new PlaidExchangeRequest
             {
-                PublicToken = pending.PublicToken,
-                InstitutionId = pending.InstitutionId,
-                InstitutionName = pending.InstitutionName
+                PublicToken = token,
+                InstitutionId = instId,
+                InstitutionName = instName
             });
-            _hasPending = false;
+
+            await Js.InvokeVoidAsync("sessionStorage.removeItem", "pf.plaid.pending");
             await Toasts.SuccessAsync("Bank linked. Transactions imported.");
             await LoadAsync();
         }
