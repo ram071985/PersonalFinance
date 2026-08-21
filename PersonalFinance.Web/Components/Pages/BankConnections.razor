@@ -15,6 +15,12 @@
         <button type="button" class="page-action-btn-secondary" disabled="@_busy" @onclick="SyncAllAsync">
             Sync all
         </button>
+        @if (_hasPending)
+        {
+            <button type="button" class="page-action-btn" disabled="@_busy" @onclick="FinishPendingAsync">
+                Complete link
+            </button>
+        }
         <button type="button" class="page-action-btn" disabled="@_busy" @onclick="ConnectAsync">
             Connect bank
         </button>
@@ -22,16 +28,23 @@
 </div>
 
 <p class="mb-6 text-sm text-foreground-muted">
-    Link once with Plaid. We store an encrypted access token so you don’t sign in to your bank every time you open this app.
-    Transactions sync automatically after linking and when you hit Sync.
+    Link once with Plaid. Transactions import after the connection is saved.
 </p>
 
-<div class="mb-6 rounded-xl border border-border bg-surface p-4">
-    <p class="text-sm text-foreground">If you already finished Chase in Plaid, complete the save here.</p>
-    <button type="button" class="page-action-btn mt-3" disabled="@_busy" @onclick="FinishPendingAsync">
-        Complete bank link
-    </button>
-</div>
+@if (_hasPending)
+{
+    <div class="mb-6 flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p class="text-sm text-foreground">
+            Chase finished in Plaid. Save the connection to this account.
+        </p>
+        <button type="button"
+                class="page-action-btn w-full sm:w-auto"
+                disabled="@_busy"
+                @onclick="FinishPendingAsync">
+            Complete link
+        </button>
+    </div>
+}
 
 @if (_loading)
 {
@@ -88,14 +101,15 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_pendingChecked) return;
         try
         {
-            var peek = await Js.InvokeAsync<PlaidLinkResult?>("pfPlaid.peekPending");
-            _hasPending = peek is not null && !string.IsNullOrWhiteSpace(peek.PublicToken);
-            _pendingChecked = true;
-            if (_hasPending)
+            var raw = await Js.InvokeAsync<string?>("sessionStorage.getItem", "pf.plaid.pending");
+            var has = !string.IsNullOrWhiteSpace(raw);
+            if (has != _hasPending)
+            {
+                _hasPending = has;
                 StateHasChanged();
+            }
         }
         catch (JSDisconnectedException) { }
         catch (JSException) { }
@@ -109,7 +123,7 @@ else
             var raw = await Js.InvokeAsync<string?>("sessionStorage.getItem", "pf.plaid.pending");
             if (string.IsNullOrWhiteSpace(raw))
             {
-                await Toasts.ErrorAsync("No pf.plaid.pending in this tab. Open Banks in the same tab you used for Chase.");
+                await Toasts.ErrorAsync("No pending bank link in this tab. Use Connect bank, or stay in the same tab after Chase.");
                 return;
             }
 
@@ -127,7 +141,7 @@ else
 
             if (string.IsNullOrWhiteSpace(token))
             {
-                await Toasts.ErrorAsync("Pending JSON has no public token: " + raw);
+                await Toasts.ErrorAsync("The pending bank link is invalid. Connect bank again.");
                 return;
             }
 
@@ -190,7 +204,7 @@ else
             result ??= await Js.InvokeAsync<PlaidLinkResult?>("pfPlaid.takePending");
             if (result is null || string.IsNullOrEmpty(result.PublicToken))
             {
-                await Toasts.ErrorAsync("Plaid finished but no public token reached the app (circuit dropped). Click Connect again.");
+                await Toasts.ErrorAsync("The bank link did not finish saving. Tap Complete link or Connect bank again.");
                 return;
             }
 
