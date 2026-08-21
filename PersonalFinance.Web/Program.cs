@@ -18,7 +18,17 @@ if (!builder.Environment.IsEnvironment("Testing"))
 }
 
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents(options =>
+    {
+        options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(20);
+        options.DisconnectedCircuitMaxRetained = 20;
+    });
+builder.Services.AddSignalR(options =>
+{
+    options.ClientTimeoutInterval = TimeSpan.FromMinutes(5);
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    options.HandshakeTimeout = TimeSpan.FromSeconds(30);
+});
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -27,14 +37,6 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/login";
     });
 builder.Services.AddAuthorization();
-builder.Services.AddAntiforgery(options =>
-{
-    options.Cookie.Name = "pf-af";
-    options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-    options.Cookie.Path = "/";
-});
-
 
 // Single registration — avoids BadImageFormatException from factory delegates
 // across mismatched Microsoft.AspNetCore.Components.Authorization builds.
@@ -78,8 +80,6 @@ if (!app.Environment.IsProduction())
     app.UseHttpsRedirection();
 
 app.UseStaticFiles();
-app.UseAntiforgery();
-
 // HTTP layer is anonymous. [Authorize] is enforced by AuthorizeRouteView (JWT),
 // not cookie challenge (/login?ReturnUrl=%2F → 400).
 app.MapGet("/Account/Login", () => Results.Redirect("/login"));

@@ -1,6 +1,8 @@
-// Plaid Link helper — loads script once, opens Link, returns public_token via promise.
+// Plaid Link helper — persist public_token so a dropped Blazor circuit can still exchange.
 window.pfPlaid = {
     _ready: null,
+    pendingKey: 'pf.plaid.pending',
+
     ensureScript: function () {
         if (window.Plaid) return Promise.resolve();
         if (this._ready) return this._ready;
@@ -14,21 +16,42 @@ window.pfPlaid = {
         });
         return this._ready;
     },
+
+    savePending: function (payload) {
+        try { sessionStorage.setItem(this.pendingKey, JSON.stringify(payload)); } catch (e) { /* ignore */ }
+    },
+
+    takePending: function () {
+        try {
+            var raw = sessionStorage.getItem(this.pendingKey);
+            sessionStorage.removeItem(this.pendingKey);
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    },
+
     open: async function (linkToken) {
         await this.ensureScript();
+        var self = this;
         return new Promise(function (resolve, reject) {
             var handler = window.Plaid.create({
                 token: linkToken,
                 onSuccess: function (public_token, metadata) {
-                    resolve({
+                    var payload = {
                         publicToken: public_token,
+                        PublicToken: public_token,
                         institutionId: metadata && metadata.institution ? metadata.institution.institution_id : null,
-                        institutionName: metadata && metadata.institution ? metadata.institution.name : null
-                    });
+                        InstitutionId: metadata && metadata.institution ? metadata.institution.institution_id : null,
+                        institutionName: metadata && metadata.institution ? metadata.institution.name : null,
+                        InstitutionName: metadata && metadata.institution ? metadata.institution.name : null
+                    };
+                    self.savePending(payload);
+                    resolve(payload);
                 },
                 onExit: function (err) {
                     if (err) reject(new Error(err.display_message || err.error_message || 'Plaid Link exited'));
-                    else resolve(null); // user closed
+                    else resolve(null);
                 }
             });
             handler.open();

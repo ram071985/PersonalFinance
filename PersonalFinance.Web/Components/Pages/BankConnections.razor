@@ -2,11 +2,11 @@
 @attribute [Authorize]
 @using PersonalFinance.Core.Dtos.Plaid
 @using PersonalFinance.Web.Services
+@using Microsoft.JSInterop
 @inject FinanceApiClient Api
 @inject ToastService Toasts
 @inject ConfirmService Confirm
 @inject IJSRuntime Js
-
 <PageTitle>Bank connections</PageTitle>
 
 <div class="page-toolbar">
@@ -76,6 +76,38 @@ else
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            var pending = await Js.InvokeAsync<PlaidLinkResult?>("pfPlaid.takePending");
+            if (pending is null || string.IsNullOrWhiteSpace(pending.PublicToken))
+                return;
+
+            _busy = true;
+            StateHasChanged();
+            await Api.ExchangePlaidTokenAsync(new PlaidExchangeRequest
+            {
+                PublicToken = pending.PublicToken,
+                InstitutionId = pending.InstitutionId,
+                InstitutionName = pending.InstitutionName
+            });
+            await Toasts.SuccessAsync("Bank linked. Transactions imported.");
+            await LoadAsync();
+        }
+        catch (JSDisconnectedException) { }
+        catch (Exception ex)
+        {
+            await Toasts.ErrorAsync(ex.Message);
+        }
+        finally
+        {
+            _busy = false;
+            StateHasChanged();
+        }
+    }
+
     private async Task LoadAsync()
     {
         _loading = true;
@@ -97,9 +129,22 @@ else
             if (link is null || string.IsNullOrEmpty(link.LinkToken))
                 throw new InvalidOperationException("Could not create Plaid link token. Is Plaid configured?");
 
-            var result = await Js.InvokeAsync<PlaidLinkResult?>("pfPlaid.open", link.LinkToken);
+            PlaidLinkResult? result;
+            try
+            {
+                result = await Js.InvokeAsync<PlaidLinkResult?>("pfPlaid.open", link.LinkToken);
+            }
+            catch (JSDisconnectedException)
+            {
+                result = await Js.InvokeAsync<PlaidLinkResult?>("pfPlaid.takePending");
+            }
+
+            result ??= await Js.InvokeAsync<PlaidLinkResult?>("pfPlaid.takePending");
             if (result is null || string.IsNullOrEmpty(result.PublicToken))
-                return; // user cancelled
+            {
+                await Toasts.ErrorAsync("Plaid finished but no public token reached the app (circuit dropped). Click Connect again.");
+                return;
+            }
 
             await Api.ExchangePlaidTokenAsync(new PlaidExchangeRequest
             {
