@@ -86,6 +86,7 @@ app.MapGet("/Account/Login", () => Results.Redirect("/login"));
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
-    .AllowAnonymous();
+    .AllowAnonymous()
+    .DisableAntiforgery();
 
 app.Run();
