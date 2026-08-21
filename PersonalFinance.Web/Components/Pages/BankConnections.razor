@@ -15,35 +15,32 @@
         <button type="button" class="page-action-btn-secondary" disabled="@_busy" @onclick="SyncAllAsync">
             Sync all
         </button>
-        @if (_hasPending)
-        {
-            <button type="button" class="page-action-btn" disabled="@_busy" @onclick="FinishPendingAsync">
-                Complete link
-            </button>
-        }
         <button type="button" class="page-action-btn" disabled="@_busy" @onclick="ConnectAsync">
             Connect bank
         </button>
     </div>
 </div>
 
-<p class="mb-6 text-sm text-foreground-muted">
-    Link once with Plaid. Transactions import after the connection is saved.
+<p class="page-lede">
+    Connect a bank once. We keep an encrypted token so you are not asked to sign in to Chase every time.
+    After a successful link, save it below so accounts and transactions appear here.
 </p>
 
 @if (_hasPending)
 {
-    <div class="mb-6 flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
-        <p class="text-sm text-foreground">
-            Chase finished in Plaid. Save the connection to this account.
+    <section class="bank-pending" aria-label="Finish bank connection">
+        <h2 class="bank-pending-title">Finish bank connection</h2>
+        <p class="bank-pending-copy">
+            Plaid approved this bank. It is not in your app until you save it.
+            Stay on this tab, then tap Save connection.
         </p>
         <button type="button"
-                class="page-action-btn w-full sm:w-auto"
+                class="page-action-btn bank-pending-btn"
                 disabled="@_busy"
                 @onclick="FinishPendingAsync">
-            Complete link
+            Save connection
         </button>
-    </div>
+    </section>
 }
 
 @if (_loading)
