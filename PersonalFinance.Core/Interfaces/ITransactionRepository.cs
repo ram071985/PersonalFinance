@@ -1,4 +1,5 @@
 using PersonalFinance.Core.Entities;
+using PersonalFinance.Core.Enums;
 
 namespace PersonalFinance.Core.Interfaces;
 
@@ -14,6 +15,7 @@ public interface ITransactionRepository
     Task<bool> DeleteAsync(int id);
     Task<decimal> GetMonthlyIncomeAsync(int year, int month);
     Task<decimal> GetMonthlyExpensesAsync(int year, int month);
-    Task<(IReadOnlyList<Transaction> Items, int Total)> GetPagedAsync(int page, int pageSize);
+    Task<(IReadOnlyList<Transaction> Items, int Total)> GetPagedAsync(int page, int pageSize, TransactionType? type = null);
     Task<decimal> GetCategorySpentAsync(int categoryId, int year, int month);
+    Task<IReadOnlyList<(int? CategoryId, string CategoryName, string? Icon, decimal Amount)>> GetCategorySpendAsync(int year, int month);
 }

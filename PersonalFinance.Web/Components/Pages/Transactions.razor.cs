@@ -5,7 +5,6 @@ using PersonalFinance.Core.Dtos.Categories;
 using PersonalFinance.Core.Dtos.Transactions;
 using PersonalFinance.Core.Enums;
 using PersonalFinance.Web.Models;
-using PersonalFinance.Web.Models;
 using PersonalFinance.Web.Services;
 
 namespace PersonalFinance.Web.Components.Pages;
@@ -30,32 +29,61 @@ public partial class Transactions : ComponentBase
     private bool _isLoading = true;
     private bool _showForm;
     private string _typeFilter = "";
+    private int _page = 1;
+    private const int PageSize = 20;
+    private int _totalCount;
+    private int _totalPages;
+    private bool _plaidSynced;
 
-    private IEnumerable<TransactionDto> FilteredTransactions =>
-        string.IsNullOrEmpty(_typeFilter)
-            ? _transactions
-            : _transactions.Where(tx => tx.Type.ToString() == _typeFilter);
-
+    private IEnumerable<TransactionDto> FilteredTransactions => _transactions;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
-    private async Task LoadAsync()
+    private async Task OnFilterChangedAsync()
+    {
+        _page = 1;
+        await LoadAsync(syncPlaid: false);
+    }
+
+    private async Task GoToPageAsync(int page)
+    {
+        if (page < 1 || (_totalPages > 0 && page > _totalPages))
+            return;
+        _page = page;
+        await LoadAsync(syncPlaid: false);
+    }
+
+    private async Task LoadAsync(bool syncPlaid = true)
     {
         _isLoading = true;
         try
         {
-            // Quiet Plaid refresh if linked (no re-auth; uses stored token)
-            try { await Api.SyncAllPlaidAsync(); } catch { /* Plaid optional */ }
+            if (syncPlaid && !_plaidSynced)
+            {
+                try { await Api.SyncAllPlaidAsync(); } catch { /* optional */ }
+                _plaidSynced = true;
+            }
 
-            _transactions = await Api.GetTransactionsAsync();
-            _accounts = await Api.GetAccountsAsync();
-            _categories = await Api.GetCategoriesAsync();
+            var paged = await Api.GetTransactionsPagedAsync(_page, PageSize, _typeFilter);
+            _transactions = paged.Items.ToList();
+            _totalCount = paged.TotalCount;
+            _totalPages = Math.Max(1, paged.TotalPages);
+            if (_page > _totalPages)
+            {
+                _page = _totalPages;
+                paged = await Api.GetTransactionsPagedAsync(_page, PageSize, _typeFilter);
+                _transactions = paged.Items.ToList();
+                _totalCount = paged.TotalCount;
+            }
+
+            if (_accounts.Count == 0)
+                _accounts = await Api.GetAccountsAsync();
+            if (_categories.Count == 0)
+                _categories = await Api.GetCategoriesAsync();
         }
         catch (Exception ex)
         {
             _transactions = new();
-            _accounts = new();
-            _categories = new();
             await Toasts.ErrorAsync($"Could not load transactions: {ex.Message}");
         }
 

@@ -1,5 +1,6 @@
 using PersonalFinance.Api.Filters;
 using PersonalFinance.Core.Dtos.Transactions;
+using PersonalFinance.Core.Enums;
 using PersonalFinance.Core.Interfaces;
 
 namespace PersonalFinance.Api.Endpoints;
@@ -12,12 +13,12 @@ public static class TransactionEndpoints
             .WithTags("Transactions")
             .RequireAuthorization();
 
-        group.MapGet("/", async (ITransactionService service, int? page, int? pageSize) =>
+        group.MapGet("/", async (ITransactionService service, int? page, int? pageSize, TransactionType? type) =>
         {
-            if (page is null && pageSize is null)
+            if (page is null && pageSize is null && type is null)
                 return Results.Ok(await service.GetAllAsync());
 
-            return Results.Ok(await service.GetPagedAsync(page ?? 1, pageSize ?? 20));
+            return Results.Ok(await service.GetPagedAsync(page ?? 1, pageSize ?? 20, type));
         });
 
         group.MapGet("/recent", async (ITransactionService service, int count = 10) =>

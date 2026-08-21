@@ -37,9 +37,9 @@ public class TransactionService : ITransactionService
     public async Task<IEnumerable<TransactionDto>> GetAllAsync() =>
         (await _repo.GetAllAsync()).ToDtoList();
 
-    public async Task<PagedResult<TransactionDto>> GetPagedAsync(int page = 1, int pageSize = 20)
+    public async Task<PagedResult<TransactionDto>> GetPagedAsync(int page = 1, int pageSize = 20, TransactionType? type = null)
     {
-        var (items, total) = await _repo.GetPagedAsync(page, pageSize);
+        var (items, total) = await _repo.GetPagedAsync(page, pageSize, type);
         return new PagedResult<TransactionDto>
         {
             Items = items.ToDtoList(),

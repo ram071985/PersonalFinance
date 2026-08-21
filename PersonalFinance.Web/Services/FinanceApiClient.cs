@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using PersonalFinance.Core.Common;
 using PersonalFinance.Core.Dtos.Accounts;
 using PersonalFinance.Core.Dtos.Budgets;
 using PersonalFinance.Core.Dtos.Categories;
@@ -164,6 +165,16 @@ public class FinanceApiClient
     // ── Transactions ──────────────────────────────────────
     public async Task<List<TransactionDto>> GetTransactionsAsync() =>
         await GetJsonAsync<List<TransactionDto>>("api/transactions") ?? new();
+
+    public async Task<PagedResult<TransactionDto>> GetTransactionsPagedAsync(
+        int page = 1, int pageSize = 20, string? type = null)
+    {
+        var qs = $"page={page}&pageSize={pageSize}";
+        if (!string.IsNullOrWhiteSpace(type))
+            qs += $"&type={Uri.EscapeDataString(type)}";
+        return await GetJsonAsync<PagedResult<TransactionDto>>($"api/transactions?{qs}")
+               ?? new PagedResult<TransactionDto> { Page = page, PageSize = pageSize };
+    }
 
     public async Task<BankStatementImportResult> ImportBankStatementAsync(
         int accountId,

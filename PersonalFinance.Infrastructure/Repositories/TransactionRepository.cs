@@ -179,7 +179,7 @@ public class TransactionRepository : ITransactionRepository
         }
     }
 
-    public async Task<(IReadOnlyList<Transaction> Items, int Total)> GetPagedAsync(int page, int pageSize)
+    public async Task<(IReadOnlyList<Transaction> Items, int Total)> GetPagedAsync(int page, int pageSize, TransactionType? type = null)
     {
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -188,6 +188,9 @@ public class TransactionRepository : ITransactionRepository
             .Include(t => t.Account)
             .Include(t => t.Category)
             .Where(t => t.UserId == UserId);
+
+        if (type is not null)
+            query = query.Where(t => t.Type == type.Value);
 
         var total = await query.CountAsync();
         var items = await query
@@ -207,4 +210,30 @@ public class TransactionRepository : ITransactionRepository
                      && t.Date.Year == year
                      && t.Date.Month == month)
             .SumAsync(t => t.Amount);
+
+    public async Task<IReadOnlyList<(int? CategoryId, string CategoryName, string? Icon, decimal Amount)>> GetCategorySpendAsync(int year, int month)
+    {
+        var rows = await _db.Transactions
+            .AsNoTracking()
+            .Include(t => t.Category)
+            .Where(t => t.UserId == UserId
+                     && t.Type == TransactionType.Expense
+                     && t.Date.Year == year
+                     && t.Date.Month == month)
+            .GroupBy(t => new { t.CategoryId, Name = t.Category != null ? t.Category.Name : "Uncategorized", Icon = t.Category != null ? t.Category.Icon : null })
+            .Select(g => new
+            {
+                g.Key.CategoryId,
+                CategoryName = g.Key.Name ?? "Uncategorized",
+                Icon = g.Key.Icon,
+                Amount = g.Sum(x => x.Amount)
+            })
+            .OrderByDescending(x => x.Amount)
+            .Take(8)
+            .ToListAsync();
+
+        return rows
+            .Select(r => ((int?)r.CategoryId, r.CategoryName, r.Icon, r.Amount))
+            .ToList();
+    }
 }
