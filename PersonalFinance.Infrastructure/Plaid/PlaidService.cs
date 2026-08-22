@@ -333,7 +333,7 @@ public class PlaidService : IPlaidService
             accountMap[accountId] = account;
         }
 
-        // Plaid: positive amount = money leaving account (expense)
+        // Plaid: positive amount = money leaving account; negative = money entering
         var amount = tx.GetProperty("amount").GetDecimal();
         var name = tx.TryGetProperty("name", out var nm) ? nm.GetString() ?? "Transaction" : "Transaction";
         var dateStr = tx.TryGetProperty("date", out var d) ? d.GetString() : null;
@@ -341,7 +341,8 @@ public class PlaidService : IPlaidService
         var pending = tx.TryGetProperty("pending", out var p) && p.GetBoolean();
         if (pending) return false; // wait for posted
 
-        var type = amount >= 0 ? TransactionType.Expense : TransactionType.Income;
+        // Credit card / loan payments are inflows on the liability account — not income
+        var type = MapTransactionType(amount, account.Type);
         var absAmount = Math.Abs(amount);
 
         var existing = await _db.Transactions
@@ -372,6 +373,21 @@ public class PlaidService : IPlaidService
         existing.IsDeleted = false;
         existing.DeletedAt = null;
         return true;
+    }
+
+
+    private static TransactionType MapTransactionType(decimal plaidAmount, AccountType accountType)
+    {
+        // Plaid: positive = money leaving the account; negative = money entering
+        var moneyOut = plaidAmount >= 0;
+
+        if (accountType is AccountType.CreditCard or AccountType.Loan)
+        {
+            // Purchase/fee → Expense; payment or refund → Transfer (not income)
+            return moneyOut ? TransactionType.Expense : TransactionType.Transfer;
+        }
+
+        return moneyOut ? TransactionType.Expense : TransactionType.Income;
     }
 
     private static AccountType MapAccountType(string? type, string? subtype)

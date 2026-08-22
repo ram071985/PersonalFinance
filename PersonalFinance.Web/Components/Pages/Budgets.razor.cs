@@ -39,13 +39,30 @@ public partial class Budgets : ComponentBase
         _isLoading = false;
     }
 
-    private void ShowCreateForm()
+    private async Task ShowCreateForm()
     {
+        if (_expenseCategories.Count == 0)
+        {
+            try
+            {
+                _expenseCategories = await Api.GetCategoriesByTypeAsync(CategoryType.Expense)
+                    ?? new();
+            }
+            catch { /* keep empty */ }
+        }
+
+        if (_expenseCategories.Count == 0)
+        {
+            await Toasts.ErrorAsync("Add an expense category before creating a budget.");
+            return;
+        }
+
         _formModel = new BudgetFormModel
         {
             Year = _selectedYear,
             Month = _selectedMonth,
-            CategoryId = _expenseCategories.FirstOrDefault()?.Id ?? 0
+            CategoryId = _expenseCategories[0].Id,
+            Amount = 0
         };
         _showForm = true;
     }
